@@ -4,76 +4,130 @@ import numpy as np
 import pyphi
 
 
-class OrderedNodeDiGraph(nx.DiGraph):
-    node_dict_factory = OrderedDict
-
-
-def parse_config(net_config):
-    NodeSpec = namedtuple('NodeSpec', ['node', 'mechanism', 'inputs'],
-                          verbose=False)
-    nodes = list()
+def parse_network_config(net_config):
+    NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
+                            verbose=False)
+    parsed_config = list()
     for node_config in net_config:
-        nodes.append(NodeSpec(node_config[0], node_config[1], node_config[2:]))
+        parsed_config.append(NodeConfig(node_config[0],     # label
+                                        node_config[1],     # mechanism
+                                        node_config[2:]))   # labels of inputs
 
-    return nodes
-
-
-def build_network(node_specs):
-    net = OrderedNodeDiGraph()
-
-    # add nodes before adding edges, so that they are added in config file order
-    for node, mechanism, inputs in node_specs:
-        net.add_node(node, mechanism=mechanism)
-
-    # now add edges
-    for node, mechanism, inputs in node_specs:
-        for input in inputs:
-            net.add_edge(input, node)
-
-    return net
+    return parsed_config
 
 
-def markov_blanket(net, node):
-    parents = set(net.pred[node])
-    children = set(net.succ[node])
-    childrens_parents = set()
-    for child in children:
-        childrens_parents.update(set(net.pred[child]))
+def format_node_tokens_by_state(tokens, states, mode='color'):
+    assert len(tokens) is len(state)
+    assert mode is 'color' or 'bold'
 
-    blanket = set.union(set(node), parents, children, childrens_parents)
-    return net.subgraph(sorted(blanket)) # TODO: preserve ordering
+    GREEN = '\033[94m'
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
 
+    new_tokens = list()
+    for token, state in zip(tokens, states):
+        if state and mode is 'color':
+            new_tokens.append(GREEN + token + END)
+        if state and mode is 'bold':
+            new_tokens.append(BOLD + token + END)
+        if not state and mode is 'color':
+            new_tokens.append(RED + token + END)
+        if not state and mode is 'bold':
+            new_tokens.append(token)
 
-def next_state(inet, current_state):
-    next_state = np.zeros(len(inet))
-    # the following line shouldn't be necessary, but the nx API is broken
-    network_mechanisms = nx.get_node_attributes(inet, 'mechanism')
-    for node in inet.nodes():
-        input_nodes = list(inet.pred[node])
-        if len(input_nodes):
-            input_vector = [current_state[x] for x in input_nodes]
-            next_state[node] = network_mechanisms[node](input_vector)
-        else:
-            next_state[node] = current_state[node]
-
-    return next_state
+    return node_tokens
 
 
-def build_tpm(net):
-    inet = nx.convert_node_labels_to_integers(net, label_attribute='name')
-    number_of_states = 2 ** len(net)
-    number_of_nodes = len(net)
-    tpm = np.zeros([number_of_states, number_of_nodes])
+def pretty_print_tpm(node_tokens, tpm):
+    number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
         current_state = pyphi.convert.loli_index2state(state_index,
                                                        number_of_nodes)
-        tpm[state_index] = next_state(inet, current_state)
+        next_state = tpm[state_index, :]
+        node_tokens = format_node_tokens_by_state(node_tokens, current_state,
+                                                  mode='bold')
+        node_tokens = format_node_tokens_by_state(node_tokens, next_state,
+                                                  mode='color')
+        pretty_state_transition = list(':'.join(node_tokens))
+        print pretty_state_transition
 
-    print("Mapping of node indicies to node labels")
-    print(nx.get_node_attributes(inet, 'name'))
-    print("TPM")
-    print(tpm)
-    return tpm
+
+
+class Network(nx.DiGraph):
+    node_dict_factory = OrderedDict
+
+    def __init__(self, config=None, label=None):
+        super().__init__()
+        self.label = label
+        self.build_from_config()
+
+
+    def build_from_config(self, config):
+        parsed_config = parse_network_config(config)
+
+        # add nodes before adding edges, so that they are added in config file order
+        for label, mechanism, inputs in parsed_config:
+            self.add_node(label, mechanism=mechanism)
+
+        # now add edges
+        for label, mechanism, inputs in parsed_config:
+            for input in inputs:
+                self.add_edge(input, label)
+
+
+    def _get_node_ordering(self, unordered_nodes):
+        return [node for node in self.nodes() if node in unorderd_nodes]
+
+
+    def markov_blanket(self, node):
+        parents = set(self.pred[node])
+        children = set(self.succ[node])
+        childrens_parents = set()
+        for child in children:
+            childrens_parents.update(set(self.pred[child]))
+
+        blanket = set.union(set(node), parents, children, childrens_parents)
+        blanket = self._get_node_ordering(blanket)
+        return self.subgraph(blanket)
+
+
+    def index(self, node):
+        return self.nodes().index(node)
+
+
+    def next_state(self, current_state):
+        next_state = np.zeros(len(current_state))
+        # the following line shouldn't be necessary, but the nx API is broken
+        network_mechanisms = nx.get_node_attributes(self, 'mechanism')
+        for node in self.nodes():
+            node_index = self.index(node)
+            input_nodes = list(self.pred[node])
+            if len(input_nodes):
+                input_vector = [current_state[x] for x in input_nodes]
+                node_mechanism = network_mechanisms[node_index]
+                next_state[node_index] = node_mechanism(input_vector)
+            else:
+                next_state[node_index] = current_state[node_index]
+
+        return next_state
+
+
+    @property
+    def tpm(self):
+        number_of_states = 2 ** len(self)
+        number_of_nodes = len(self)
+        tpm = np.zeros([number_of_states, number_of_nodes])
+        for state_index in range(number_of_states):
+            current_state = pyphi.convert.loli_index2state(state_index,
+                                                           number_of_nodes)
+            tpm[state_index] = self.next_state(current_state)
+
+        return tpm
+
+
+    def node_tokens(self):
+        return [str(node) for node in self.nodes()]
 
 
 def net_first_order_concepts(global_net, global_state):
