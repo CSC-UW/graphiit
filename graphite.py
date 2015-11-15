@@ -16,27 +16,28 @@ def parse_network_config(net_config):
     return parsed_config
 
 
-def format_node_tokens_by_state(tokens, states, mode='color'):
-    assert len(tokens) is len(state)
-    assert mode is 'color' or 'bold'
+def format_node_tokens_by_state(tokens, states, mode='fore'):
+    assert len(tokens) is len(states)
+    assert mode is 'fore' or 'back'
 
-    GREEN = '\033[94m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
+    CYAN_FORE = '\033[36m'
+    RED_FORE = '\033[31m'
+    WHITE_BACK = '\033[47m'
+    BLACK_BACK = '\033[40m'
     END = '\033[0m'
 
     new_tokens = list()
     for token, state in zip(tokens, states):
-        if state and mode is 'color':
-            new_tokens.append(GREEN + token + END)
-        if state and mode is 'bold':
-            new_tokens.append(BOLD + token + END)
-        if not state and mode is 'color':
-            new_tokens.append(RED + token + END)
-        if not state and mode is 'bold':
-            new_tokens.append(token)
+        if state and mode is 'fore':
+            new_tokens.append(CYAN_FORE + token + END)
+        if state and mode is 'back':
+            new_tokens.append(WHITE_BACK + token + END)
+        if not state and mode is 'fore':
+            new_tokens.append(RED_FORE + token + END)
+        if not state and mode is 'back':
+            new_tokens.append(BLACK_BACK + token + END)
 
-    return node_tokens
+    return new_tokens
 
 
 def pretty_print_tpm(node_tokens, tpm):
@@ -45,13 +46,11 @@ def pretty_print_tpm(node_tokens, tpm):
         current_state = pyphi.convert.loli_index2state(state_index,
                                                        number_of_nodes)
         next_state = tpm[state_index, :]
-        node_tokens = format_node_tokens_by_state(node_tokens, current_state,
-                                                  mode='bold')
-        node_tokens = format_node_tokens_by_state(node_tokens, next_state,
-                                                  mode='color')
-        pretty_state_transition = list(':'.join(node_tokens))
-        print pretty_state_transition
-
+        pretty_tokens = format_node_tokens_by_state(node_tokens, current_state,
+                                                    mode='back')
+        pretty_tokens = format_node_tokens_by_state(pretty_tokens, next_state,
+                                                    mode='fore')
+        print(':'.join(pretty_tokens))
 
 
 class Network(nx.DiGraph):
@@ -60,13 +59,13 @@ class Network(nx.DiGraph):
     def __init__(self, config=None, label=None):
         super().__init__()
         self.label = label
-        self.build_from_config()
-
+        self.build_from_config(config)
 
     def build_from_config(self, config):
         parsed_config = parse_network_config(config)
 
-        # add nodes before adding edges, so that they are added in config file order
+        # add nodes before adding any edges,
+        # so that they are added to the graph in config file order
         for label, mechanism, inputs in parsed_config:
             self.add_node(label, mechanism=mechanism)
 
@@ -75,10 +74,8 @@ class Network(nx.DiGraph):
             for input in inputs:
                 self.add_edge(input, label)
 
-
     def _get_node_ordering(self, unordered_nodes):
-        return [node for node in self.nodes() if node in unorderd_nodes]
-
+        return [node for node in self.nodes() if node in unordered_nodes]
 
     def markov_blanket(self, node):
         parents = set(self.pred[node])
@@ -91,10 +88,8 @@ class Network(nx.DiGraph):
         blanket = self._get_node_ordering(blanket)
         return self.subgraph(blanket)
 
-
     def index(self, node):
         return self.nodes().index(node)
-
 
     def next_state(self, current_state):
         next_state = np.zeros(len(current_state))
@@ -104,14 +99,15 @@ class Network(nx.DiGraph):
             node_index = self.index(node)
             input_nodes = list(self.pred[node])
             if len(input_nodes):
-                input_vector = [current_state[x] for x in input_nodes]
-                node_mechanism = network_mechanisms[node_index]
+                input_vector = [current_state[self.index(x)] for x in
+                                input_nodes]
+                node_mechanism = network_mechanisms[node]
                 next_state[node_index] = node_mechanism(input_vector)
             else:
+                # TODO: Is this right?
                 next_state[node_index] = current_state[node_index]
 
         return next_state
-
 
     @property
     def tpm(self):
@@ -125,7 +121,7 @@ class Network(nx.DiGraph):
 
         return tpm
 
-
+    @property
     def node_tokens(self):
         return [str(node) for node in self.nodes()]
 
