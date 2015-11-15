@@ -1,5 +1,5 @@
 import networkx as nx
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, Iterable
 import numpy as np
 import pyphi
 
@@ -125,78 +125,67 @@ class Network(nx.DiGraph):
     def node_tokens(self):
         return [str(node) for node in self.nodes()]
 
+    def subsystem_state(self, subsystem, my_state):
+        subsystem_state = list()
+        for node in subsystem:
+            subsystem_state.append(my_state[self.index(node)])
 
-def net_first_order_concepts(global_net, global_state):
-    global_net_nodes = global_net.nodes()
-    concepts = dict()
-    for concept_node in global_net_nodes:
-        blanket = markov_blanket(global_net, concept_node)
-        concept_node_blanket_index = blanket.nodes().index(concept_node)
-        print("Node | Blanket | Node Index in Blanket")
-        print(concept_node, blanket.nodes(), concept_node_blanket_index)
+        return tuple(subsystem_state)
 
-        tpm = build_tpm(blanket)
-        cm = nx.to_numpy_matrix(blanket)
-        print ("Connectivity matrix")
-        print(cm)
-        pyphi_blanket = pyphi.Network(tpm, connectivity_matrix=cm)
+    def net_first_order_concepts(self, state, just_phi=False):
+        nodes = self.nodes()
+        concepts = dict()
+        for node in nodes:
+            blanket = self.markov_blanket(node)
+            blanket_cm = nx.to_numpy_matrix(blanket)
+            pyphi_blanket = pyphi.Network(blanket.tpm,
+                                          connectivity_matrix=blanket_cm)
+            blanket_state = self.subsystem_state(blanket, state)
+            pyphi_sub = pyphi.Subsystem(pyphi_blanket, blanket_state,
+                                        range(len(blanket)))
+            concept = pyphi_sub.concept((pyphi_sub.nodes[blanket.index(node)],))
+            concepts[node] = concept.phi if just_phi else concept
 
-        blanket_state = list()
-        for node in blanket.nodes():
-            node_global_index = global_net_nodes.index(node)
-            node_state = global_state[node_global_index]
-            blanket_state.append(node_state)
-        blanket_state = tuple(blanket_state)
+        return concepts
 
-        pyphi_sub = pyphi.Subsystem(pyphi_blanket, blanket_state,
-                                    range(len(blanket)))
-        concept = pyphi_sub.concept((pyphi_sub.nodes[concept_node_blanket_index],))
+    def node_first_order_concepts(self, node, states='all', just_phi=False):
+        # states are blanket states
+        # TODO: accept system states
+        # states must be in holi format
+        blanket = self.markov_blanket(node)
+        blanket_cm = nx.to_numpy_matrix(blanket)
+        pyphi_blanket = pyphi.Network(blanket.tpm,
+                                      connectivity_matrix=blanket_cm)
+        if states is 'all':
+            states = [pyphi.convert.holi_index2state(i, len(blanket))
+                      for i in range(pyphi_blanket.num_states)]
+        else:
+            assert type(states) is list, "states must be a list of states"
+            assert all([isinstance(state, Iterable) for state in states]), \
+                "each state must be iterable"
 
-        concepts[concept_node] = concept
-        print("Cumulative set of concepts")
-        print(concepts)
+        concepts = dict()
+        for state in states:
+            pyphi_sub = pyphi.Subsystem(pyphi_blanket, state,
+                                        range(len(blanket)))
+            concept = pyphi_sub.concept((pyphi_sub.nodes[blanket.index(node)],))
+            concepts[state] = concept.phi if just_phi else concept
 
-    return concepts
+        return concepts
 
+    def parse_state_config(self, state_config):
+        if ('on' in state_config) and not ('off' in state_config):
+            on_nodes = set(state_config['on'])
+        elif ('off' in state_config) and not ('on' in state_config):
+            off_nodes = set(state_config['off'])
+            all_nodes = set(self.nodes())
+            on_nodes = all_nodes - off_nodes
+        else:
+            raise("State config cannot expliticly specifiy both on and off \
+                  nodes")
 
-def node_first_order_concepts(net, node):
-    blanket = markov_blanket(net, node)
+        global_state = np.zeros(len(self))
+        for node in on_nodes:
+            global_state[self.index(node)] = 1
 
-    tpm = build_tpm(blanket)
-    cm = nx.to_numpy_matrix(blanket)
-    pyphi_net = pyphi.Network(tpm, connectivity_matrix=cm)
-
-    node_index = blanket.nodes().index(node)
-    concepts = dict()
-    for state_index in range(pyphi_net.num_states):
-        current_state = pyphi.convert.holi_index2state(state_index,
-                                                       len(blanket))
-        pyphi_sub = pyphi.Subsystem(pyphi_net, current_state,
-                                    range(len(blanket)))
-        concept = pyphi_sub.concept((pyphi_sub.nodes[node_index],))
-        if current_state == (0, 0, 0, 0, 0):
-            print(concept)
-        concepts[current_state] = concept.phi
-
-    print(blanket.nodes())
-    return concepts
-
-
-def global_state(state_config, net):
-    if ('on' in state_config) and not ('off' in state_config):
-        on_nodes = set(state_config['on'])
-    elif ('off' in state_config) and not ('on' in state_config):
-        off_nodes = set(state_config['off'])
-        all_nodes = set(net.nodes())
-        on_nodes = all_nodes - off_nodes
-    else:
-        raise("State config cannot expliticly specifiy both on and off nodes")
-
-    global_state = np.zeros(len(net))
-    for node in on_nodes:
-        node_index = net.nodes().index(node)
-        global_state[node_index] = 1
-
-    return global_state
-
-
+        return global_state
