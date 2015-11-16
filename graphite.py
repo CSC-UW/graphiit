@@ -4,6 +4,18 @@ import numpy as np
 import pyphi
 
 
+def convert_holi_tpm_to_loli(holi_tpm):
+    # Assumes state by node format
+    states, nodes = holi_tpm.shape
+    loli_tpm = np.zeros([states, nodes])
+    for i in range(states):
+        loli_state = pyphi.convert.loli_index2state(i, nodes)
+        holi_tpm_row = pyphi.convert.state2holi_index(loli_state)
+        loli_tpm[i, :] = holi_tpm[holi_tpm_row, :]
+
+    return loli_tpm
+
+
 def parse_network_config(net_config):
     NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
                             verbose=False)
@@ -54,9 +66,10 @@ def pretty_print_tpm(node_tokens, tpm):
 
 
 class Network(nx.DiGraph):
+    # Edge order NOT preserved!
     node_dict_factory = OrderedDict
 
-    def __init__(self, config=None, label=None):
+    def __init__(self, config=[], label=None):
         super().__init__()
         self.label = label
         self.build_from_config(config)
@@ -111,6 +124,10 @@ class Network(nx.DiGraph):
 
     @property
     def tpm(self):
+        return self.loli_tpm
+
+    @property
+    def loli_tpm(self):
         number_of_states = 2 ** len(self)
         number_of_nodes = len(self)
         tpm = np.zeros([number_of_states, number_of_nodes])
@@ -120,6 +137,10 @@ class Network(nx.DiGraph):
             tpm[state_index] = self.next_state(current_state)
 
         return tpm
+
+    @property
+    def connectivity_matrix(self):
+        return nx.to_numpy_matrix(self)
 
     @property
     def node_tokens(self):
@@ -137,9 +158,8 @@ class Network(nx.DiGraph):
         concepts = dict()
         for node in nodes:
             blanket = self.markov_blanket(node)
-            blanket_cm = nx.to_numpy_matrix(blanket)
             pyphi_blanket = pyphi.Network(blanket.tpm,
-                                          connectivity_matrix=blanket_cm)
+                                          blanket.connectivity_matrix)
             blanket_state = self.subsystem_state(blanket, state)
             pyphi_sub = pyphi.Subsystem(pyphi_blanket, blanket_state,
                                         range(len(blanket)))
@@ -153,9 +173,8 @@ class Network(nx.DiGraph):
         # TODO: accept system states
         # states must be in holi format
         blanket = self.markov_blanket(node)
-        blanket_cm = nx.to_numpy_matrix(blanket)
         pyphi_blanket = pyphi.Network(blanket.tpm,
-                                      connectivity_matrix=blanket_cm)
+                                      blanket.connectivity_matrix)
         if states is 'all':
             states = [pyphi.convert.holi_index2state(i, len(blanket))
                       for i in range(pyphi_blanket.num_states)]
