@@ -1,21 +1,55 @@
-# TODO: Implement RANDOM
+# Lambdas avoided for easier debugging
 
-AND = lambda xs: sum(xs) == len(xs)
-NAND = lambda xs: not AND(xs)
-OR = lambda xs: sum(xs) >= 1
-NOR = lambda xs: not OR(xs)
-XOR = lambda xs: sum(xs) % 2 == 1
-MAJORITY = lambda xs: sum(xs) > len(xs)/2
-MINORITY = lambda xs: sum(xs) <= len(xs)/2
-PARITY = lambda xs: sum(xs) % 2 == 0
-GREATER_THAN = lambda threshold: lambda xs: sum(xs) >= threshold
-LESS_THAN = lambda threshold: lambda xs: sum(xs) < threshold
-NULL = lambda _: False
 
-def COPY(xs):
-    assert len(xs) <= 1, "COPY gates cannot have multiple inputs"
-    return OR(xs)
+def AND(inputs):
+    return sum(inputs) == len(inputs)
 
-def NOT(xs):
-    assert len(xs) <= 1, "NOT gates cannot have multiple inputs"
-    return NOR(xs)
+
+def NAND(inputs):
+    return not AND(inputs)
+
+
+def OR(inputs):
+    return sum(inputs) >= 1
+
+
+def COPY(inputs):
+    assert len(inputs) <= 1, "COPY gates cannot have multiple inputs"
+    return OR(inputs)
+
+
+def NOR(inputs):
+    return not OR(inputs)
+
+
+def NOT(inputs):
+    assert len(inputs) <= 1, "NOT gates cannot have multiple inputs"
+    return NOR(inputs)
+
+
+def XOR(inputs):
+    return sum(inputs) % 2 == 1
+
+
+def MAJORITY(inputs):
+    return sum(inputs) > len(inputs)/2
+
+
+def MAJ(inputs):
+    return MAJORITY(inputs)
+
+
+def MINORITY(inputs):
+    return sum(inputs) <= len(inputs)/2
+
+
+def MIN(inputs):
+    return MINORITY(inputs)
+
+
+def PARITY(inputs):
+    return sum(inputs) % 2 == 0
+
+
+def PAR(inputs):
+    return PARITY(inputs)
