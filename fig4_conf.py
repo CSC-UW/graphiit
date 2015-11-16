@@ -1,4 +1,4 @@
-from micro_elements import AND, OR, XOR
+from micro_mechanisms import AND, OR, XOR
 
 net_conf = [('A', OR, 'B', 'C'),
             ('B', AND, 'A', 'C'),

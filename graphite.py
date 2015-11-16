@@ -2,15 +2,15 @@ import networkx as nx
 from collections import namedtuple, OrderedDict, Iterable
 import numpy as np
 import pyphi
-
+from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
 
 def convert_holi_tpm_to_loli(holi_tpm):
     # Assumes state by node format
     states, nodes = holi_tpm.shape
     loli_tpm = np.zeros([states, nodes])
     for i in range(states):
-        loli_state = pyphi.convert.loli_index2state(i, nodes)
-        holi_tpm_row = pyphi.convert.state2holi_index(loli_state)
+        loli_state = loli_index2state(i, nodes)
+        holi_tpm_row = state2holi_index(loli_state)
         loli_tpm[i, :] = holi_tpm[holi_tpm_row, :]
 
     return loli_tpm
@@ -55,8 +55,7 @@ def format_node_tokens_by_state(tokens, states, mode='fore'):
 def pretty_print_tpm(node_tokens, tpm):
     number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
-        current_state = pyphi.convert.loli_index2state(state_index,
-                                                       number_of_nodes)
+        current_state = loli_index2state(state_index, number_of_nodes)
         next_state = tpm[state_index, :]
         pretty_tokens = format_node_tokens_by_state(node_tokens, current_state,
                                                     mode='back')
@@ -69,10 +68,10 @@ class Network(nx.DiGraph):
     # Edge order NOT preserved!
     node_dict_factory = OrderedDict
 
-    def __init__(self, config=[], label=None):
+    def __init__(self, net_config=[], state_config={}):
         super().__init__()
-        self.label = label
-        self.build_from_config(config)
+        self.build_from_config(net_config)
+        self.state = self.parse_state_config(state_config)
 
     def build_from_config(self, config):
         parsed_config = parse_network_config(config)
@@ -87,6 +86,13 @@ class Network(nx.DiGraph):
             for input in inputs:
                 self.add_edge(input, label)
 
+    def subsystem(self, subsystem_nodes):
+        subsystem = super().subgraph(subsystem_nodes)
+        subsystem.state = tuple([self.state[self.index(node)] for node in
+                                subsystem.nodes()])
+
+        return subsystem
+
     def _get_node_ordering(self, unordered_nodes):
         return [node for node in self.nodes() if node in unordered_nodes]
 
@@ -97,14 +103,17 @@ class Network(nx.DiGraph):
         for child in children:
             childrens_parents.update(set(self.pred[child]))
 
-        blanket = set.union(set(node), parents, children, childrens_parents)
+        blanket = set.union({node}, parents, children, childrens_parents)
         blanket = self._get_node_ordering(blanket)
-        return self.subgraph(blanket)
+        return self.subsystem(blanket)
 
     def index(self, node):
         return self.nodes().index(node)
 
-    def next_state(self, current_state):
+    def predict_next_state(self, current_state=None):
+        if not current_state:
+            current_state = self.state
+
         next_state = np.zeros(len(current_state))
         # the following line shouldn't be necessary, but the nx API is broken
         network_mechanisms = nx.get_node_attributes(self, 'mechanism')
@@ -122,6 +131,9 @@ class Network(nx.DiGraph):
 
         return next_state
 
+    def tic(self, current_state=None):
+        self.state = self.predict_next_state(current_state)
+
     @property
     def tpm(self):
         return self.loli_tpm
@@ -132,9 +144,8 @@ class Network(nx.DiGraph):
         number_of_nodes = len(self)
         tpm = np.zeros([number_of_states, number_of_nodes])
         for state_index in range(number_of_states):
-            current_state = pyphi.convert.loli_index2state(state_index,
-                                                           number_of_nodes)
-            tpm[state_index] = self.next_state(current_state)
+            current_state = loli_index2state(state_index, number_of_nodes)
+            tpm[state_index] = self.predict_next_state(current_state)
 
         return tpm
 
@@ -146,62 +157,59 @@ class Network(nx.DiGraph):
     def node_tokens(self):
         return [str(node) for node in self.nodes()]
 
-    def subsystem_state(self, subsystem, my_state):
-        subsystem_state = list()
-        for node in subsystem:
-            subsystem_state.append(my_state[self.index(node)])
-
-        return tuple(subsystem_state)
-
-    def net_first_order_concepts(self, state, just_phi=False):
+    def net_first_order_concepts(self, just_phi=False):
         nodes = self.nodes()
         concepts = dict()
         for node in nodes:
-            blanket = self.markov_blanket(node)
-            pyphi_blanket = pyphi.Network(blanket.tpm,
-                                          blanket.connectivity_matrix)
-            blanket_state = self.subsystem_state(blanket, state)
-            pyphi_sub = pyphi.Subsystem(pyphi_blanket, blanket_state,
-                                        range(len(blanket)))
-            concept = pyphi_sub.concept((pyphi_sub.nodes[blanket.index(node)],))
-            concepts[node] = concept.phi if just_phi else concept
-
+            concepts[node] = self.node_first_order_concepts(node,
+                                                            states='blanket',
+                                                            just_phi=just_phi)
         return concepts
 
-    def node_first_order_concepts(self, node, states='all', just_phi=False):
-        # states are blanket states
-        # TODO: accept system states
-        # states must be in holi format
+    def node_first_order_concepts(self, node, states='blanket', just_phi=False):
+        """
+        Args:
+            states (str): 'all' or 'blanket'
+        """
         blanket = self.markov_blanket(node)
         pyphi_blanket = pyphi.Network(blanket.tpm,
                                       blanket.connectivity_matrix)
         if states is 'all':
-            states = [pyphi.convert.holi_index2state(i, len(blanket))
-                      for i in range(pyphi_blanket.num_states)]
+            concepts = dict()
+            for state in self.all_possible_holi_states():
+                sub = pyphi.Subsystem(pyphi_blanket, state, range(len(blanket)))
+                concept = sub.concept((sub.nodes[blanket.index(node)],))
+                concepts[state] = concept.phi if just_phi else concept
+            return concepts
+        elif states is 'blanket':
+            sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                                 range(len(blanket)))
+            concept = sub.concept((sub.nodes[blanket.index(node)],))
+            return concept.phi if just_phi else concept
         else:
-            assert type(states) is list, "states must be a list of states"
-            assert all([isinstance(state, Iterable) for state in states]), \
-                "each state must be iterable"
+            raise("Argument not recognized: %s.", states)
 
-        concepts = dict()
-        for state in states:
-            pyphi_sub = pyphi.Subsystem(pyphi_blanket, state,
-                                        range(len(blanket)))
-            concept = pyphi_sub.concept((pyphi_sub.nodes[blanket.index(node)],))
-            concepts[state] = concept.phi if just_phi else concept
-
-        return concepts
+    def all_possible_holi_states(self):
+        state_index = 0
+        number_of_nodes = len(self)
+        number_of_states = 2 ** len(self)
+        while state_index < number_of_states:
+            yield holi_index2state(state_index, number_of_nodes)
+            state_index += 1
 
     def parse_state_config(self, state_config):
-        if ('on' in state_config) and not ('off' in state_config):
-            on_nodes = set(state_config['on'])
-        elif ('off' in state_config) and not ('on' in state_config):
-            off_nodes = set(state_config['off'])
-            all_nodes = set(self.nodes())
-            on_nodes = all_nodes - off_nodes
+        if not state_config:
+            return None
         else:
-            raise("State config cannot expliticly specifiy both on and off \
-                  nodes")
+            if ('on' in state_config) and not ('off' in state_config):
+                on_nodes = set(state_config['on'])
+            elif ('off' in state_config) and not ('on' in state_config):
+                off_nodes = set(state_config['off'])
+                all_nodes = set(self.nodes())
+                on_nodes = all_nodes - off_nodes
+            else:
+                raise("State config cannot expliticly specifiy both on and off \
+                      nodes")
 
         global_state = np.zeros(len(self))
         for node in on_nodes:
