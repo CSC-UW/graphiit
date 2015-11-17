@@ -1,7 +1,8 @@
 import pytest
 import fig4_conf
 from graphite import *
-
+from utils import *
+# TODO : Split testing of utils into its own file
 
 @pytest.fixture
 def fig4():

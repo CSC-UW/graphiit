@@ -2,18 +2,7 @@ import networkx as nx
 from collections import namedtuple, OrderedDict, Iterable
 import numpy as np
 import pyphi
-from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
-
-def convert_holi_tpm_to_loli(holi_tpm):
-    # Assumes state by node format
-    states, nodes = holi_tpm.shape
-    loli_tpm = np.zeros([states, nodes])
-    for i in range(states):
-        loli_state = loli_index2state(i, nodes)
-        holi_tpm_row = state2holi_index(loli_state)
-        loli_tpm[i, :] = holi_tpm[holi_tpm_row, :]
-
-    return loli_tpm
+from pyphi.convert import loli_index2state, holi_index2state
 
 
 def parse_network_config(net_config):
@@ -28,50 +17,16 @@ def parse_network_config(net_config):
     return parsed_config
 
 
-def format_node_tokens_by_state(tokens, states, mode='fore'):
-    assert len(tokens) is len(states)
-    assert mode is 'fore' or 'back'
-
-    CYAN_FORE = '\033[36m'
-    RED_FORE = '\033[31m'
-    WHITE_BACK = '\033[47m'
-    BLACK_BACK = '\033[40m'
-    END = '\033[0m'
-
-    new_tokens = list()
-    for token, state in zip(tokens, states):
-        if state and mode is 'fore':
-            new_tokens.append(CYAN_FORE + token + END)
-        if state and mode is 'back':
-            new_tokens.append(WHITE_BACK + token + END)
-        if not state and mode is 'fore':
-            new_tokens.append(RED_FORE + token + END)
-        if not state and mode is 'back':
-            new_tokens.append(BLACK_BACK + token + END)
-
-    return new_tokens
-
-
-def pretty_print_tpm(node_tokens, tpm):
-    number_of_states, number_of_nodes = tpm.shape
-    for state_index in range(number_of_states):
-        current_state = loli_index2state(state_index, number_of_nodes)
-        next_state = tpm[state_index, :]
-        pretty_tokens = format_node_tokens_by_state(node_tokens, current_state,
-                                                    mode='back')
-        pretty_tokens = format_node_tokens_by_state(pretty_tokens, next_state,
-                                                    mode='fore')
-        print(':'.join(pretty_tokens))
-
-
 class Network(nx.DiGraph):
     # Edge order NOT preserved!
     node_dict_factory = OrderedDict
 
-    def __init__(self, net_config=[], state_config={}):
+    def __init__(self, net_config=[], state_config={}, roi=[]):
         super().__init__()
         self.build_from_config(net_config)
         self.state = self.parse_state_config(state_config)
+        self.roi = roi
+
 
     def build_from_config(self, config):
         parsed_config = parse_network_config(config)
@@ -90,6 +45,7 @@ class Network(nx.DiGraph):
         subsystem = super().subgraph(subsystem_nodes)
         subsystem.state = tuple([self.state[self.index(node)] for node in
                                 subsystem.nodes()])
+        subsystem.roi = [node for node in subsystem.nodes() if node in self.roi]
 
         return subsystem
 
@@ -157,39 +113,34 @@ class Network(nx.DiGraph):
     def node_tokens(self):
         return [str(node) for node in self.nodes()]
 
-    def net_first_order_concepts(self, just_phi=False):
-        nodes = self.nodes()
+    def net_first_order_concepts(self, just_phi=False, use_roi=False):
+        nodes = self.roi if use_roi else self.nodes()
         concepts = dict()
         for node in nodes:
             concepts[node] = self.node_first_order_concepts(node,
-                                                            states='blanket',
-                                                            just_phi=just_phi)
+                                                            just_phi=just_phi,
+                                                            use_roi=use_roi)
         return concepts
 
-    def node_first_order_concepts(self, node, states='blanket', just_phi=False):
+    def node_first_order_concepts(self, node, just_phi=False, use_roi=False):
         """
         Args:
             states (str): 'all' or 'blanket'
         """
         blanket = self.markov_blanket(node)
-        pyphi_blanket = pyphi.Network(blanket.tpm,
-                                      blanket.connectivity_matrix)
-        if states is 'all':
-            concepts = dict()
-            for state in self.all_possible_holi_states():
-                sub = pyphi.Subsystem(pyphi_blanket, state, range(len(blanket)))
-                concept = sub.concept((sub.nodes[blanket.index(node)],))
-                concepts[state] = concept.phi if just_phi else concept
-            return concepts
-        elif states is 'blanket':
-            sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                                 range(len(blanket)))
-            concept = sub.concept((sub.nodes[blanket.index(node)],))
-            return concept.phi if just_phi else concept
+        pyphi_blanket = pyphi.Network(blanket.tpm, blanket.connectivity_matrix)
+
+        if use_roi:
+            pyphi_submask = [blanket.index(node) for node in blanket.roi]
         else:
-            raise("Argument not recognized: %s.", states)
+            pyphi_submask = range(len(blanket))
+
+        sub = pyphi.Subsystem(pyphi_blanket, blanket.state, pyphi_submask)
+        concept = sub.concept((sub.nodes[blanket.index(node)],))
+        return concept.phi if just_phi else concept
 
     def all_possible_holi_states(self):
+        # unused
         state_index = 0
         number_of_nodes = len(self)
         number_of_states = 2 ** len(self)
