@@ -3,6 +3,7 @@ from collections import namedtuple, OrderedDict, Iterable
 import numpy as np
 import pyphi
 from pyphi.convert import loli_index2state, holi_index2state
+from pyphi.models import Cut
 
 
 def parse_network_config(net_config):
@@ -26,7 +27,6 @@ class Network(nx.DiGraph):
         self.build_from_config(net_config)
         self.state = self.parse_state_config(state_config)
         self.roi = roi
-
 
     def build_from_config(self, config):
         parsed_config = parse_network_config(config)
@@ -62,6 +62,14 @@ class Network(nx.DiGraph):
         blanket = set.union({node}, parents, children, childrens_parents)
         blanket = self._get_node_ordering(blanket)
         return self.subsystem(blanket)
+
+    def neighborhood(self, node):
+        parents = set(self.pred[node])
+        children = set(self.succ[node])
+
+        neighborhood = set.union({node}, parents, children)
+        neighborhood = self._get_node_ordering(neighborhood)
+        return self.subsystem(neighborhood)
 
     def index(self, node):
         return self.nodes().index(node)
@@ -123,21 +131,67 @@ class Network(nx.DiGraph):
         return concepts
 
     def node_first_order_concepts(self, node, just_phi=False, use_roi=False):
-        """
-        Args:
-            states (str): 'all' or 'blanket'
-        """
         blanket = self.markov_blanket(node)
         pyphi_blanket = pyphi.Network(blanket.tpm, blanket.connectivity_matrix)
 
         if use_roi:
-            pyphi_submask = [blanket.index(node) for node in blanket.roi]
+            pyphi_submask = [blanket.index(x) for x in blanket.roi]
         else:
             pyphi_submask = range(len(blanket))
 
         sub = pyphi.Subsystem(pyphi_blanket, blanket.state, pyphi_submask)
         concept = sub.concept((sub.nodes[blanket.index(node)],))
         return concept.phi if just_phi else concept
+
+    def net_first_order_mip(self):
+        cut_effects = dict()
+        for cut_node in self.nodes():
+            altered_concepts = self.node_first_order_mip(cut_node)
+            total_phi_destroyed_by_cut = sum(altered_concepts.values())
+            cut_effects[cut_node] = total_phi_destroyed_by_cut
+
+        minimum_loss = min(cut_effects.values())
+        for cut_node, loss in cut_effects.items():
+            if loss == minimum_loss:
+                return (cut_node, loss)
+
+    def node_first_order_mip(self, cut_node):
+        "max effect on first order concepts of uniparitioning out a single node"
+
+        neighborhood = self.neighborhood(cut_node)
+        altered_concepts = dict()
+        for concept_node in neighborhood.nodes():
+            blanket = self.markov_blanket(concept_node)
+            pyphi_blanket = pyphi.Network(blanket.tpm,
+                                          blanket.connectivity_matrix)
+
+            pyphi_concept_node_idx = blanket.index(concept_node)
+            pyphi_cut_node_idx = blanket.index(cut_node)
+            pyphi_cut_complement_idx = [blanket.index(x) for x in
+                                        blanket.nodes() if x is not cut_node]
+            outgoing_cut = Cut((pyphi_cut_node_idx,),
+                               tuple(pyphi_cut_complement_idx))
+            incoming_cut = Cut(tuple(pyphi_cut_complement_idx),
+                               (pyphi_cut_node_idx,))
+
+            outgoing_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                               range(len(blanket)),
+                                               cut=outgoing_cut)
+            incoming_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                               range(len(blanket)),
+                                               cut=incoming_cut)
+            uncut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                        range(len(blanket)))
+
+            outgoing_cut_phi = outgoing_cut_sub.phi_max((outgoing_cut_sub.nodes[pyphi_concept_node_idx],))
+            incoming_cut_phi = incoming_cut_sub.phi_max((incoming_cut_sub.nodes[pyphi_concept_node_idx],))
+            uncut_phi = uncut_sub.phi_max((uncut_sub.nodes[pyphi_concept_node_idx],))
+
+            phi_destroyed = uncut_phi - max(outgoing_cut_phi, incoming_cut_phi)
+            if phi_destroyed > 0:
+                altered_concepts[concept_node] = phi_destroyed
+
+        return altered_concepts
 
     def all_possible_holi_states(self):
         # unused
