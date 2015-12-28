@@ -146,8 +146,17 @@ class Network(nx.DiGraph):
     def net_first_order_mip(self):
         cut_effects = dict()
         for cut_node in self.nodes():
-            altered_concepts = self.node_first_order_mip(cut_node)
-            total_phi_destroyed_by_cut = sum(altered_concepts.values())
+            cut_concepts = self.node_first_order_mip(cut_node)
+            out = 0
+            inn = 0
+            unn = 0
+            for concept in cut_concepts.keys():
+                cout, cin, cun = cut_concepts[concept]
+                out += cout
+                inn += cin
+                unn += cun
+
+            total_phi_destroyed_by_cut = unn - max(out, inn)
             cut_effects[cut_node] = total_phi_destroyed_by_cut
 
         minimum_loss = min(cut_effects.values())
@@ -158,8 +167,9 @@ class Network(nx.DiGraph):
     def node_first_order_mip(self, cut_node):
         "max effect on first order concepts of uniparitioning out a single node"
 
+        ccs = dict()
         neighborhood = self.neighborhood(cut_node)
-        altered_concepts = dict()
+        cut_concepts = dict()
         for concept_node in neighborhood.nodes():
             blanket = self.markov_blanket(concept_node)
             pyphi_blanket = pyphi.Network(blanket.tpm,
@@ -183,15 +193,21 @@ class Network(nx.DiGraph):
             uncut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
                                         range(len(blanket)))
 
+            if cut_node is 'L':
+                o = outgoing_cut_sub.concept((outgoing_cut_sub.nodes[pyphi_concept_node_idx],))
+                i = incoming_cut_sub.concept((incoming_cut_sub.nodes[pyphi_concept_node_idx],))
+                u = uncut_sub.concept((uncut_sub.nodes[pyphi_concept_node_idx],))
+                ccs[concept_node] = (o, i, u)
+
             outgoing_cut_phi = outgoing_cut_sub.phi_max((outgoing_cut_sub.nodes[pyphi_concept_node_idx],))
             incoming_cut_phi = incoming_cut_sub.phi_max((incoming_cut_sub.nodes[pyphi_concept_node_idx],))
             uncut_phi = uncut_sub.phi_max((uncut_sub.nodes[pyphi_concept_node_idx],))
 
-            phi_destroyed = uncut_phi - max(outgoing_cut_phi, incoming_cut_phi)
-            if phi_destroyed > 0:
-                altered_concepts[concept_node] = phi_destroyed
+            cut_concepts[concept_node] = (outgoing_cut_phi, incoming_cut_phi, uncut_phi)
 
-        return altered_concepts
+        if cut_node is 'L':
+            import pdb; pdb.set_trace()
+        return cut_concepts
 
     def all_possible_holi_states(self):
         # unused
