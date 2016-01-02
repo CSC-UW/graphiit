@@ -1,5 +1,5 @@
 import networkx as nx
-from collections import namedtuple, OrderedDict, Iterable
+from collections import namedtuple, OrderedDict
 import numpy as np
 import pyphi
 from pyphi.convert import loli_index2state, holi_index2state
@@ -144,19 +144,28 @@ class Network(nx.DiGraph):
         return concept.phi if just_phi else concept
 
     def net_first_order_mip(self):
+        """ Determine which single node can be unidirectionally partitioned out
+            of the network with minimum loss.
+
+            Returns:
+                tuple: (the excised node, the associated loss of phi)
+
+        """
         cut_effects = dict()
         for cut_node in self.nodes():
             cut_concepts = self.node_first_order_mip(cut_node)
-            out = 0
-            inn = 0
-            unn = 0
+            cum_phi_given_outgoing = 0
+            cum_phi_given_incoming = 0
+            cum_phi_given_none = 0
             for concept in cut_concepts.keys():
-                cout, cin, cun = cut_concepts[concept]
-                out += cout
-                inn += cin
-                unn += cun
+                phi_given_outgoing, phi_given_incoming, phi_given_none = \
+                    cut_concepts[concept]
+                cum_phi_given_outgoing += phi_given_outgoing
+                cum_phi_given_incoming += phi_given_incoming
+                cum_phi_given_none += phi_given_none
 
-            total_phi_destroyed_by_cut = unn - max(out, inn)
+            total_phi_destroyed_by_cut = cum_phi_given_none - \
+                max(cum_phi_given_outgoing, cum_phi_given_incoming)
             cut_effects[cut_node] = total_phi_destroyed_by_cut
 
         minimum_loss = min(cut_effects.values())
@@ -165,9 +174,19 @@ class Network(nx.DiGraph):
                 return (cut_node, loss)
 
     def node_first_order_mip(self, cut_node):
-        "max effect on first order concepts of uniparitioning out a single node"
+        """ Determine the effects that unidirectionally paritioning out
+            the given node (and only that node) can have a network's first
+            order concepts.
 
-        ccs = dict()
+            Args:
+                cut_node: The node to partition out.
+
+            Returns:
+                dict(tuple): Keyed by concepts. Each entry contains the strength
+                    of the concept given a cut which severs 'cut_node's
+                    (1) outgoing connections, (2) incoming connections,
+                    (3) no connections.
+        """
         neighborhood = self.neighborhood(cut_node)
         cut_concepts = dict()
         for concept_node in neighborhood.nodes():
@@ -179,34 +198,26 @@ class Network(nx.DiGraph):
             pyphi_cut_node_idx = blanket.index(cut_node)
             pyphi_cut_complement_idx = [blanket.index(x) for x in
                                         blanket.nodes() if x is not cut_node]
-            outgoing_cut = Cut((pyphi_cut_node_idx,),
-                               tuple(pyphi_cut_complement_idx))
-            incoming_cut = Cut(tuple(pyphi_cut_complement_idx),
-                               (pyphi_cut_node_idx,))
+            out_cut = Cut((pyphi_cut_node_idx,),
+                          tuple(pyphi_cut_complement_idx))
+            in_cut = Cut(tuple(pyphi_cut_complement_idx), (pyphi_cut_node_idx,))
 
-            outgoing_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                               range(len(blanket)),
-                                               cut=outgoing_cut)
-            incoming_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                               range(len(blanket)),
-                                               cut=incoming_cut)
+            out_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                          range(len(blanket)), cut=out_cut)
+            in_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
+                                         range(len(blanket)), cut=in_cut)
             uncut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
                                         range(len(blanket)))
 
-            if cut_node is 'L':
-                o = outgoing_cut_sub.concept((outgoing_cut_sub.nodes[pyphi_concept_node_idx],))
-                i = incoming_cut_sub.concept((incoming_cut_sub.nodes[pyphi_concept_node_idx],))
-                u = uncut_sub.concept((uncut_sub.nodes[pyphi_concept_node_idx],))
-                ccs[concept_node] = (o, i, u)
+            out_cut_phi = out_cut_sub.phi_max((
+                out_cut_sub.nodes[pyphi_concept_node_idx],))
+            in_cut_phi = in_cut_sub.phi_max((
+                in_cut_sub.nodes[pyphi_concept_node_idx],))
+            uncut_phi = uncut_sub.phi_max((
+                uncut_sub.nodes[pyphi_concept_node_idx],))
 
-            outgoing_cut_phi = outgoing_cut_sub.phi_max((outgoing_cut_sub.nodes[pyphi_concept_node_idx],))
-            incoming_cut_phi = incoming_cut_sub.phi_max((incoming_cut_sub.nodes[pyphi_concept_node_idx],))
-            uncut_phi = uncut_sub.phi_max((uncut_sub.nodes[pyphi_concept_node_idx],))
+            cut_concepts[concept_node] = (out_cut_phi, in_cut_phi, uncut_phi)
 
-            cut_concepts[concept_node] = (outgoing_cut_phi, incoming_cut_phi, uncut_phi)
-
-        if cut_node is 'L':
-            import pdb; pdb.set_trace()
         return cut_concepts
 
     def all_possible_holi_states(self):
