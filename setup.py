@@ -15,4 +15,5 @@ setup(
     url='http://github.com/grahamfindlay/pyphi',
     license='GNU General Public License v3.0',
     install_requires=['numpy', 'pyphi', 'networkx']
+    packages=['graphite'];
 )
