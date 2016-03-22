@@ -8,12 +8,12 @@ except ImportError:
   from distutils.core import setup
 
 setup(
-    name='graphite',
+    name='graphiit',
     version='0.0.1',
     description='Python library for building PyPhi network graphs',
     author='Graham Findlay',
-    url='http://github.com/grahamfindlay/pyphi',
+    url='http://github.com/grahamfindlay/graphiit',
     license='GNU General Public License v3.0',
     install_requires=['numpy', 'pyphi', 'networkx']
-    packages=['graphite'];
+    packages=['graphiit'];
 )

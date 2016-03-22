@@ -1,6 +1,6 @@
 import pytest
 import fig4_conf
-from graphite import *
+from graphiit import *
 from utils import *
 # TODO : Split testing of utils into its own file
 
