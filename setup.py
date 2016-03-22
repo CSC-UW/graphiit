@@ -20,7 +20,7 @@ setup(
       'Development Status :: 3 - Alpha',
       'Intended Audience :: Developers',
       'Natural Language :: English',
-      'License :: OSI Approved :: GNU General Public Licence v3 of later (GPLv3+)',
+      'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
       'Programming Language :: Python',
       'Programming Language :: Python :: 3',
       'Topic :: Scientific/Engineering',
