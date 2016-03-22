@@ -14,6 +14,15 @@ setup(
     author='Graham Findlay',
     url='http://github.com/grahamfindlay/graphiit',
     license='GNU General Public License v3.0',
-    install_requires=['numpy', 'pyphi', 'networkx']
-    packages=['graphiit'];
+    install_requires=['numpy', 'pyphi', 'networkx'],
+    packages=['graphiit'],
+    classifiers=[
+      'Development Status :: 3 - Alpha',
+      'Intended Audience :: Developers',
+      'Natural Language :: English',
+      'License :: OSI Approved :: GNU General Public Licence v3 of later (GPLv3+)',
+      'Programming Language :: Python',
+      'Programming Language :: Python :: 3',
+      'Topic :: Scientific/Engineering',
+    ]
 )
