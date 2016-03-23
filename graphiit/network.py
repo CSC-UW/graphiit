@@ -1,22 +1,10 @@
 import networkx as nx
-from collections import namedtuple, OrderedDict
 import numpy as np
 import pyphi
 from pyphi.convert import loli_index2state, holi_index2state
 from pyphi.models import Cut
-
-
-def parse_network_config(net_config):
-    NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
-                            verbose=False)
-    parsed_config = list()
-    for node_config in net_config:
-        parsed_config.append(NodeConfig(node_config[0],     # label
-                                        node_config[1],     # mechanism
-                                        node_config[2:]))   # labels of inputs
-
-    return parsed_config
-
+from . import utils
+from collections import OrderedDict
 
 class Network(nx.DiGraph):
     # Edge order NOT preserved!
@@ -29,7 +17,7 @@ class Network(nx.DiGraph):
         self.roi = roi
 
     def build_from_config(self, config):
-        parsed_config = parse_network_config(config)
+        parsed_config = utils.parse_network_config(config)
 
         # add nodes before adding any edges,
         # so that they are added to the graph in config file order

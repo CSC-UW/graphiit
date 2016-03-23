@@ -1,21 +1,22 @@
 import pytest
-import fig4_conf
-from graphiit import *
-from utils import *
+import pyphi
+from graphiit import Network
+from graphiit.example_networks import oizumi2014_fig4
+from graphiit.utils import * # TODO : name imports explicitly
 # TODO : Split testing of utils into its own file
 
 @pytest.fixture
-def fig4():
-    return Network(fig4_conf.net_conf)
+def fig4_graph():
+    return Network(oizumi2014_fig4.net_conf)
 
 
-def test_connectivity_matrix(fig4):
+def test_connectivity_matrix(fig4_graph):
     true_connectivity_matrix = np.array([
         [0, 1, 1],
         [1, 0, 1],
         [1, 1, 0]
     ])  # Holi format
-    assert np.all(fig4.connectivity_matrix == true_connectivity_matrix)
+    assert np.all(fig4_graph.connectivity_matrix == true_connectivity_matrix)
 
 
 def test_network_instantiation():
@@ -24,20 +25,20 @@ def test_network_instantiation():
 
 def test_build_from_config():
     net = test_network_instantiation()
-    net.build_from_config(config=fig4_conf.net_conf)
+    net.build_from_config(config=oizumi2014_fig4.net_conf)
     assert net.nodes() == ['A', 'B', 'C'], "Nodes out of order"
 
 
-def test_node_tokens(fig4):
-    assert fig4.node_tokens == ['A', 'B', 'C']
+def test_node_tokens(fig4_graph):
+    assert fig4_graph.node_tokens == ['A', 'B', 'C']
 
 
-def test_format_node_tokens_by_state(fig4):
+def test_format_node_tokens_by_state(fig4_graph):
     state = (1, 0, 0)
-    fore = format_node_tokens_by_state(fig4.node_tokens, state, mode='fore')
+    fore = format_node_tokens_by_state(fig4_graph.node_tokens, state, mode='fore')
     print("Tokens formatted by foreground color, should be cyan:red:red")
     print(':'.join(fore))
-    back = format_node_tokens_by_state(fig4.node_tokens, state, mode='back')
+    back = format_node_tokens_by_state(fig4_graph.node_tokens, state, mode='back')
     print("Tokens formatted by background color, should be white:black:black")
     print(':'.join(back))
     fore_and_back = format_node_tokens_by_state(fore, state, mode='back')
@@ -45,15 +46,15 @@ def test_format_node_tokens_by_state(fig4):
     print(':'.join(fore_and_back))
 
 
-def test_pretty_print_tpm(fig4):
+def test_pretty_print_tpm(fig4_graph):
     print("Pretty printing figure 4 TPM")
-    pretty_print_tpm(fig4.node_tokens, fig4.tpm)
+    pretty_print_tpm(fig4_graph.node_tokens, fig4_graph.tpm)
 
 
-def test_pyphi_integration(fig4):
+def test_pyphi_integration(fig4_graph):
     current_state = (1, 0, 0)  # holi format
 
-    computed_net = pyphi.Network(fig4.tpm, fig4.connectivity_matrix)
+    computed_net = pyphi.Network(fig4_graph.tpm, fig4_graph.connectivity_matrix)
     computed_sub = pyphi.Subsystem(computed_net, current_state,
                                    range(computed_net.size))
 
@@ -89,7 +90,7 @@ def test_holi_tpm_to_loli():
     assert np.all(computed_loli_tpm == true_loli_tpm)
 
 
-def test_tpm(fig4):
+def test_tpm(fig4_graph):
     true_loli_tpm = np.array([
         [0, 0, 0],
         [0, 0, 1],
@@ -100,4 +101,4 @@ def test_tpm(fig4):
         [1, 0, 1],
         [1, 1, 0]
     ])
-    assert np.all(fig4.tpm == true_loli_tpm)
+    assert np.all(fig4_graph.tpm == true_loli_tpm)
