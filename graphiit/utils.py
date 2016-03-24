@@ -42,7 +42,7 @@ def parse_state_config(graph, state_config):
                   nodes")
 
     global_state = np.zeros(len(graph))
-    global_state[graph.get_indicies(on_nodes)] = 1
+    global_state[graph.get_indices(on_nodes)] = 1
 
     return global_state
 

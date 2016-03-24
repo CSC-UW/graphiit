@@ -71,8 +71,8 @@ class Graph(nx.DiGraph):
     def subgraph(self, subgraph_nodes):
         """Create a subgraph containing only the nodes provided and edges
            between them. Background elements and state are inherited."""
-        subgraph = super().subgraph(nodes)
-        subgraph_nodes_indices = self.get_indices(subgraph.nodes())
+        subgraph = super().subgraph(subgraph_nodes)
+        subgraph_node_indices = self.get_indices(subgraph.nodes())
         subgraph.state = self.state[subgraph_node_indices]
         subgraph.background_nodes = [node for node in subgraph.nodes()
                                      if node in self.background_nodes]
@@ -109,7 +109,7 @@ class Graph(nx.DiGraph):
         """Get the index of a single node, according to the graph's node order."""
         return self.nodes().index(node)
 
-    def get_indicies(self, nodes):
+    def get_indices(self, nodes):
         """Get a a list of node indices according to graph order. The ith entry
            in the returned list is the index of the ith node in the input list.
            PyPhi networks spawned using Graph methods maintain these node
