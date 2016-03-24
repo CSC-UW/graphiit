@@ -1,4 +1,5 @@
 __pyphi_cache__
+*.ipynb
 
 # ----- GitHub Template -----
 # byte-compiled / optimized / dll files

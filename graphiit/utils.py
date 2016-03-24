@@ -3,11 +3,11 @@ from itertools import chain, combinations
 from pyphi.convert import loli_index2state, state2holi_index
 from collections import namedtuple
 
-def parse_network_config(net_config):
+def parse_graph_config(graph_config):
     NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
                             verbose=False)
     parsed_config = list()
-    for node_config in net_config:
+    for node_config in graph_config:
         parsed_config.append(NodeConfig(node_config[0],     # label
                                         node_config[1],     # mechanism
                                         node_config[2:]))   # labels of inputs

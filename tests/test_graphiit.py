@@ -1,13 +1,13 @@
 import pytest
 import pyphi
-from graphiit import Network
-from graphiit.example_networks import oizumi2014_fig4
+from graphiit import Graph
+from graphiit.example_graphs import oizumi2014_fig4
 from graphiit.utils import * # TODO : name imports explicitly
 # TODO : Split testing of utils into its own file
 
 @pytest.fixture
 def fig4_graph():
-    return Network(oizumi2014_fig4.net_conf)
+    return Graph(oizumi2014_fig4.graph_conf)
 
 
 def test_connectivity_matrix(fig4_graph):
@@ -19,14 +19,14 @@ def test_connectivity_matrix(fig4_graph):
     assert np.all(fig4_graph.connectivity_matrix == true_connectivity_matrix)
 
 
-def test_network_instantiation():
-    return Network()
+def test_graph_instantiation():
+    return Graph()
 
 
 def test_build_from_config():
-    net = test_network_instantiation()
-    net.build_from_config(config=oizumi2014_fig4.net_conf)
-    assert net.nodes() == ['A', 'B', 'C'], "Nodes out of order"
+    graph = test_graph_instantiation()
+    graph.build_from_config(config=oizumi2014_fig4.graph_conf)
+    assert graph.nodes() == ['A', 'B', 'C'], "Nodes out of order"
 
 
 def test_node_tokens(fig4_graph):

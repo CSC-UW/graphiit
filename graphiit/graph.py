@@ -6,18 +6,18 @@ from pyphi.models import Cut
 from . import utils
 from collections import OrderedDict
 
-class Network(nx.DiGraph):
+class Graph(nx.DiGraph):
     # Edge order NOT preserved!
     node_dict_factory = OrderedDict
 
-    def __init__(self, net_config=[], state_config={}, roi=[]):
+    def __init__(self, graph_config=[], state_config={}, roi=[]):
         super().__init__()
-        self.build_from_config(net_config)
+        self.build_from_config(graph_config)
         self.state = self.parse_state_config(state_config)
         self.roi = roi
 
     def build_from_config(self, config):
-        parsed_config = utils.parse_network_config(config)
+        parsed_config = utils.parse_graph_config(config)
 
         # add nodes before adding any edges,
         # so that they are added to the graph in config file order

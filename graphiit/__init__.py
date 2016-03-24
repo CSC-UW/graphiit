@@ -1,4 +1,4 @@
-from . import network
-from .network import Network
+from . import graph
+from .graph import Graph
 
-__all__ = ['Network', 'network']
+__all__ = ['Graph', 'graph']
