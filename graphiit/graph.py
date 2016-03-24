@@ -152,25 +152,6 @@ class Graph(nx.DiGraph):
         elif isinstance(state, np.ndarray):
             self._state = state
         elif isinstance(state, dict):
-            self._state = self._parse_state_config(state)
+            self._state = utils.parse_state_config(self, state)
         else:
             raise("Unrecognized state specification")
-
-    def _parse_state_config(self, state_config):
-        if not state_config:
-            return None
-        else:
-            if ('on' in state_config) and not ('off' in state_config):
-                on_nodes = set(state_config['on'])
-            elif ('off' in state_config) and not ('on' in state_config):
-                off_nodes = set(state_config['off'])
-                all_nodes = set(self.nodes())
-                on_nodes = all_nodes - off_nodes
-            else:
-                raise("State config cannot expliticly specifiy both on and off \
-                      nodes")
-
-        global_state = np.zeros(len(self))
-        global_state[self.get_indices(on_nodes)] = 1
-
-        return global_state

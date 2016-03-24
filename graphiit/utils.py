@@ -3,6 +3,25 @@ from itertools import chain, combinations
 from pyphi.convert import loli_index2state, state2holi_index
 from collections import namedtuple
 
+def parse_state_config(graph, state_config):
+    if not state_config:
+        return None
+    else:
+        if ('on' in state_config) and not ('off' in state_config):
+            on_nodes = set(state_config['on'])
+        elif ('off' in state_config) and not ('on' in state_config):
+            off_nodes = set(state_config['off'])
+            all_nodes = set(graph.nodes())
+            on_nodes = all_nodes - off_nodes
+        else:
+            raise("State config cannot expliticly specifiy both on and off \
+                  nodes")
+
+    global_state = np.zeros(len(graph))
+    global_state[graph.get_indices(on_nodes)] = 1
+
+    return global_state
+
 def parse_graph_config(graph_config):
     NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
                             verbose=False)
