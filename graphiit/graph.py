@@ -66,7 +66,7 @@ class Graph(nx.DiGraph):
 
     def complement(self, nodes):
         """Return all nodes not in the list provided."""
-        return [node for node in self.nodes if node not in nodes]
+        return [node for node in self.nodes() if node not in nodes]
 
     def subgraph(self, subgraph_nodes):
         """Create a subgraph containing only the nodes provided and edges
