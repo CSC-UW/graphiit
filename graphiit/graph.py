@@ -10,13 +10,13 @@ class Graph(nx.DiGraph):
     # Edge order NOT preserved!
     node_dict_factory = OrderedDict
 
-    def __init__(self, graph_config=[], state_config={}, roi=[]):
+    def __init__(self, graph_config=[], state={}, background_nodes=[]):
         super().__init__()
-        self.build_from_config(graph_config)
-        self.state = self.parse_state_config(state_config)
-        self.roi = roi
+        self._build_from_config(graph_config)
+        self.state = state
+        self.background_nodes = background_nodes
 
-    def build_from_config(self, config):
+    def _build_from_config(self, config):
         parsed_config = utils.parse_graph_config(config)
 
         # add nodes before adding any edges,
@@ -29,13 +29,25 @@ class Graph(nx.DiGraph):
             for input in inputs:
                 self.add_edge(input, label)
 
-    def subsystem(self, subsystem_nodes):
-        subsystem = super().subgraph(subsystem_nodes)
-        subsystem.state = np.asarray([self.state[self.index(node)] for node in
-                                      subsystem.nodes()])
-        subsystem.roi = [node for node in subsystem.nodes() if node in self.roi]
+    @property
+    def foreground_nodes(self):
+        return self.complement(self.background_nodes)
 
-        return subsystem
+    @foreground_nodes.setter
+    def foreground_nodes(self, foreground_nodes):
+        self.background_nodes = self.complement(foreground_nodes)
+
+    def complement(self, nodes):
+        return [node for node in self.nodes if node not in nodes]
+
+    def subgraph(self, subgraph_nodes):
+        subgraph = super().subgraph(nodes)
+        subgraph_nodes_indices = self.get_indices(subgraph.nodes())
+        subgraph.state = self.state[subgraph_node_indices]
+        subgraph.background_nodes = [node for node in subgraph.nodes()
+                                     if node in self.background_nodes]
+
+        return subgraph
 
     def _get_node_ordering(self, unordered_nodes):
         return [node for node in self.nodes() if node in unordered_nodes]
@@ -49,7 +61,7 @@ class Graph(nx.DiGraph):
 
         blanket = set.union({node}, parents, children, childrens_parents)
         blanket = self._get_node_ordering(blanket)
-        return self.subsystem(blanket)
+        return self.subgraph(blanket)
 
     def neighborhood(self, node):
         parents = set(self.pred[node])
@@ -57,10 +69,13 @@ class Graph(nx.DiGraph):
 
         neighborhood = set.union({node}, parents, children)
         neighborhood = self._get_node_ordering(neighborhood)
-        return self.subsystem(neighborhood)
+        return self.subgraph(neighborhood)
 
-    def index(self, node):
+    def get_index(self, node):
         return self.nodes().index(node)
+
+    def get_indicies(self, nodes):
+        return [self.get_index(node) for node in nodes]
 
     def predict_next_state(self, current_state=None):
         if not current_state:
@@ -70,10 +85,10 @@ class Graph(nx.DiGraph):
         # the following line shouldn't be necessary, but the nx API is broken
         network_mechanisms = nx.get_node_attributes(self, 'mechanism')
         for node in self.nodes():
-            node_index = self.index(node)
+            node_index = self.get_index(node)
             input_nodes = list(self.pred[node])
             if len(input_nodes):
-                input_vector = [current_state[self.index(x)] for x in
+                input_vector = [current_state[self.get_index(x)] for x in
                                 input_nodes]
                 node_mechanism = network_mechanisms[node]
                 next_state[node_index] = node_mechanism(input_vector)
@@ -109,100 +124,13 @@ class Graph(nx.DiGraph):
     def node_tokens(self):
         return [str(node) for node in self.nodes()]
 
-    def net_first_order_concepts(self, just_phi=False, use_roi=False):
-        nodes = self.roi if use_roi else self.nodes()
-        concepts = dict()
-        for node in nodes:
-            concepts[node] = self.node_first_order_concepts(node,
-                                                            just_phi=just_phi,
-                                                            use_roi=use_roi)
-        return concepts
+    def pyphi_network(self):
+        return pyphi.Network(self.tpm, self.connectivity_matrix)
 
-    def node_first_order_concepts(self, node, just_phi=False, use_roi=False):
-        blanket = self.markov_blanket(node)
-        pyphi_blanket = pyphi.Network(blanket.tpm, blanket.connectivity_matrix)
-
-        if use_roi:
-            pyphi_submask = [blanket.index(x) for x in blanket.roi]
-        else:
-            pyphi_submask = range(len(blanket))
-        sub = pyphi.Subsystem(pyphi_blanket, blanket.state, pyphi_submask)
-        concept = sub.concept((blanket.index(node),))
-        return concept.phi if just_phi else concept
-
-    def net_first_order_mip(self):
-        """ Determine which single node can be unidirectionally partitioned out
-            of the network with minimum loss.
-
-            Returns:
-                tuple: (the excised node, the associated loss of phi)
-
-        """
-        cut_effects = dict()
-        for cut_node in self.nodes():
-            cut_concepts = self.node_first_order_mip(cut_node)
-            cum_phi_given_outgoing = 0
-            cum_phi_given_incoming = 0
-            cum_phi_given_none = 0
-            for concept in cut_concepts.keys():
-                phi_given_outgoing, phi_given_incoming, phi_given_none = \
-                    cut_concepts[concept]
-                cum_phi_given_outgoing += phi_given_outgoing
-                cum_phi_given_incoming += phi_given_incoming
-                cum_phi_given_none += phi_given_none
-
-            total_phi_destroyed_by_cut = cum_phi_given_none - \
-                max(cum_phi_given_outgoing, cum_phi_given_incoming)
-            cut_effects[cut_node] = total_phi_destroyed_by_cut
-
-        minimum_loss = min(cut_effects.values())
-        for cut_node, loss in cut_effects.items():
-            if loss == minimum_loss:
-                return (cut_node, loss)
-
-    def node_first_order_mip(self, cut_node):
-        """ Determine the effects that unidirectionally paritioning out
-            the given node (and only that node) can have a network's first
-            order concepts.
-
-            Args:
-                cut_node: The node to partition out.
-
-            Returns:
-                dict(tuple): Keyed by concepts. Each entry contains the strength
-                    of the concept given a cut which severs 'cut_node's
-                    (1) outgoing connections, (2) incoming connections,
-                    (3) no connections.
-        """
-        neighborhood = self.neighborhood(cut_node)
-        cut_concepts = dict()
-        for concept_node in neighborhood.nodes():
-            blanket = self.markov_blanket(concept_node)
-            pyphi_blanket = pyphi.Network(blanket.tpm,
-                                          blanket.connectivity_matrix)
-
-            pyphi_concept_node_idx = blanket.index(concept_node)
-            pyphi_cut_node_idx = blanket.index(cut_node)
-            pyphi_cut_complement_idx = [blanket.index(x) for x in
-                                        blanket.nodes() if x is not cut_node]
-            out_cut = Cut((pyphi_cut_node_idx,),
-                          tuple(pyphi_cut_complement_idx))
-            in_cut = Cut(tuple(pyphi_cut_complement_idx), (pyphi_cut_node_idx,))
-
-            out_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                          range(len(blanket)), cut=out_cut)
-            in_cut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                         range(len(blanket)), cut=in_cut)
-            uncut_sub = pyphi.Subsystem(pyphi_blanket, blanket.state,
-                                        range(len(blanket)))
-
-            out_cut_phi = out_cut_sub.phi_max(( pyphi_concept_node_idx,))
-            in_cut_phi = in_cut_sub.phi_max(( pyphi_concept_node_idx,))
-            uncut_phi = uncut_sub.phi_max(( pyphi_concept_node_idx,))
-
-            cut_concepts[concept_node] = (out_cut_phi, in_cut_phi, uncut_phi)
-
-        return cut_concepts
+    def pyphi_subsystem(self):
+        net = pyphi.Network(self.tpm, self.connectivity_matrix)
+        foreground_node_indices = self.get_indices(self.foreground_nodes)
+        return pyphi.Subsystem(net, self.state, foreground_node_indices)
 
     def all_possible_holi_states(self):
         # unused
@@ -213,7 +141,22 @@ class Graph(nx.DiGraph):
             yield holi_index2state(state_index, number_of_nodes)
             state_index += 1
 
-    def parse_state_config(self, state_config):
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, state):
+        if isinstance(state, list):
+            self._state = np.array(state)
+        elif isinstance(state, np.ndarray):
+            self._state = state
+        elif isinstance(state, dict):
+            self._state = self._parse_state_config(state)
+        else:
+            raise("Unrecognized state specification")
+
+    def _parse_state_config(self, state_config):
         if not state_config:
             return None
         else:
@@ -228,7 +171,6 @@ class Graph(nx.DiGraph):
                       nodes")
 
         global_state = np.zeros(len(self))
-        for node in on_nodes:
-            global_state[self.index(node)] = 1
+        global_state[self.get_indices(on_nodes)] = 1
 
         return global_state

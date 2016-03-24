@@ -10,7 +10,7 @@ state1 = {'on': ['A']}
 # TODO : move this to separate file
 if __name__ == "__main__":
     graph = g.Graph(graph_conf, state1)
-    concepts = graph.net_first_order_concepts(just_phi=False, use_roi=False)
+    concepts = graph.net_first_order_concepts(just_phi=False, use_background_nodes=False)
     print(concepts)
     big_phi = graph.net_first_order_mip()
     print(big_phi)
