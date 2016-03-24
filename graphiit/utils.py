@@ -1,7 +1,31 @@
+import networkx as nx
 import numpy as np
 from itertools import chain, combinations
-from pyphi.convert import loli_index2state, state2holi_index
+from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
 from collections import namedtuple
+
+def predict_next_state(graph, current_state):
+    # TODO: Allow current_state to be specified using a config.
+    """Yield the next state of a graph, given a current state.
+       Memory friendly: doesn't require a TPM."""
+
+    next_state = np.zeros(len(current_state))
+    # the following line shouldn't be necessary, but the nx API is broken
+    network_mechanisms = nx.get_node_attributes(graph, 'mechanism')
+    for node in graph.nodes():
+        node_index = graph.get_index(node)
+        input_nodes = list(graph.pred[node])
+        if len(input_nodes):
+            input_vector = [current_state[graph.get_index(x)] for x in
+                            input_nodes]
+            node_mechanism = network_mechanisms[node]
+            next_state[node_index] = node_mechanism(input_vector)
+        else:
+            # Here we define the state of an inputless node as persistent.
+            #   This may not be your intented behavior!
+            next_state[node_index] = current_state[node_index]
+
+    return next_state
 
 def parse_state_config(graph, state_config):
     if not state_config:
@@ -81,6 +105,14 @@ def convert_holi_tpm_to_loli(holi_tpm):
 
     return loli_tpm
 
+def all_possible_holi_states(graph):
+    # unused
+    state_index = 0
+    number_of_nodes = len(graph)
+    number_of_states = 2 ** len(graph)
+    while state_index < number_of_states:
+        yield holi_index2state(state_index, number_of_nodes)
+        state_index += 1
 
 def powerset(iterable):
     # unused

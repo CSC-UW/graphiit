@@ -23,9 +23,9 @@ def test_graph_instantiation():
     return Graph()
 
 
-def test_build_from_config():
+def test_add_from_config():
     graph = test_graph_instantiation()
-    graph._build_from_config(config=oizumi2014_fig4.graph_conf)
+    graph._add_from_config(config=oizumi2014_fig4.graph_conf)
     assert graph.nodes() == ['A', 'B', 'C'], "Nodes out of order"
 
 
