@@ -180,7 +180,7 @@ class Graph(nx.DiGraph):
         Example 2: graph.state = [0, 0, 1]
         Example 3: graph.state = {'on' : ['C']}
         """
-        return self._state
+        return self._state.astype(int)
 
     @state.setter
     def state(self, state):
