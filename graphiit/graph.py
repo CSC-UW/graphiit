@@ -2,7 +2,6 @@ import networkx as nx
 import numpy as np
 import pyphi
 from pyphi.convert import loli_index2state
-from pyphi.models import Cut
 from . import utils
 from collections import OrderedDict
 
