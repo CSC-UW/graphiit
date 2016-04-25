@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='graphiit',
-    version='0.0.1',
+    version='0.0.2',
     description='Python library for building PyPhi network graphs',
     author='Graham Findlay',
     url='http://github.com/grahamfindlay/graphiit',
