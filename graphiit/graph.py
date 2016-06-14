@@ -183,11 +183,4 @@ class Graph(nx.DiGraph):
 
     @state.setter
     def state(self, state):
-        if isinstance(state, list):
-            self._state = np.array(state)
-        elif isinstance(state, np.ndarray):
-            self._state = state
-        elif isinstance(state, dict):
-            self._state = utils.parse_state_config(self, state)
-        else:
-            raise("Unrecognized state specification")
+        self._state = utils.parse_state_config(self, state)

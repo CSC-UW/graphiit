@@ -30,19 +30,28 @@ def predict_next_state(graph, current_state):
 
     return next_state
 
+
 def parse_state_config(graph, state_config):
+    """Parse a state configuration into an actual state."""
     if not state_config:
         return None
+
+    if isinstance(state_config, (tuple, list, np.ndarray)):
+        if len(graph) != len(state_config):
+            raise ValueError(
+                "Mis-sized state config. States passed in tuple form must "
+                "specify the state of every node in the graph, no more.")
+        return np.array(state_config)
+
+    if ('on' in state_config) and not ('off' in state_config):
+        on_nodes = set(state_config['on'])
+    elif ('off' in state_config) and not ('on' in state_config):
+        off_nodes = set(state_config['off'])
+        all_nodes = set(graph.nodes())
+        on_nodes = all_nodes - off_nodes
     else:
-        if ('on' in state_config) and not ('off' in state_config):
-            on_nodes = set(state_config['on'])
-        elif ('off' in state_config) and not ('on' in state_config):
-            off_nodes = set(state_config['off'])
-            all_nodes = set(graph.nodes())
-            on_nodes = all_nodes - off_nodes
-        else:
-            raise("State config cannot expliticly specifiy both on and off \
-                  nodes")
+        raise ValueError(
+            "State config cannot specifiy both on and off nodes")
 
     global_state = np.zeros(len(graph))
     global_state[graph.get_indices(on_nodes)] = 1

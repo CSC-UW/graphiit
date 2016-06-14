@@ -114,3 +114,23 @@ def test_parse_graph_config_handles_string_mechanism():
         NodeConfig('A', XOR, ['B', 'C']),
         NodeConfig('B', NOT, ['D']),
     ])
+
+
+def test_parse_state_config():
+    graph = Graph(oizumi2014_fig4.graph_conf)
+
+    # State too large
+    with pytest.raises(ValueError):
+        parse_state_config(graph, (0, 1, 0, 1))
+
+    config = (0, 1, 0)
+    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+
+    config = [0, 1, 0]
+    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+
+    config = {'on': ['B']}
+    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+
+    config = {'off': ['A', 'C']}
+    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
