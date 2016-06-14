@@ -150,3 +150,8 @@ def test_parse_state_config():
 
     config = {'off': ['A', 'C']}
     assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+
+    # Can't specify both on and off states
+    with pytest.raises(ValueError):
+        config = {'off': ['A', 'C'], 'on': ['B']}
+        parse_state_config(graph, config)
