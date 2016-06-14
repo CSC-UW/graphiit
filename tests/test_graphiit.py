@@ -2,6 +2,7 @@ import pytest
 import pyphi
 from graphiit import Graph
 from graphiit.example_graphs import oizumi2014_fig4
+from graphiit.micro_mechanisms import XOR, NOT
 from graphiit.utils import * # TODO : name imports explicitly
 # TODO : Split testing of utils into its own file
 
@@ -102,3 +103,14 @@ def test_tpm(fig4_graph):
         [1, 1, 0]
     ])
     assert np.all(fig4_graph.tpm == true_loli_tpm)
+
+
+def test_parse_graph_config_handles_string_mechanism():
+    config = [
+        ['A', 'XOR', 'B', 'C'],
+        ['B', 'NOT', 'D'],
+    ]
+    assert(parse_graph_config(config) == [
+        NodeConfig('A', XOR, ['B', 'C']),
+        NodeConfig('B', NOT, ['D']),
+    ])

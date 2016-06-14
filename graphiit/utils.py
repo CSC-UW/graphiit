@@ -4,6 +4,9 @@ from itertools import chain, combinations
 from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
 from collections import namedtuple
 
+from . import micro_mechanisms
+
+
 def predict_next_state(graph, current_state):
     # TODO: Allow current_state to be specified using a config.
     """Yield the next state of a graph, given a current state.
@@ -46,14 +49,26 @@ def parse_state_config(graph, state_config):
 
     return global_state
 
+
+NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'])
+
+
 def parse_graph_config(graph_config):
-    NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
-                            verbose=False)
-    parsed_config = list()
+    """Parse a graph configuration list.
+
+    Returns:
+        list[NodeConfig]
+    """
+    parsed_config = []
     for node_config in graph_config:
-        parsed_config.append(NodeConfig(node_config[0],     # label
-                                        node_config[1],     # mechanism
-                                        node_config[2:]))   # labels of inputs
+
+        if isinstance(node_config[1], str):
+            mechanism = micro_mechanisms.MAP[node_config[1]]
+        else:
+            mechanism = node_config[1]
+
+        parsed_config.append(NodeConfig(label=node_config[0],
+            mechanism=mechanism, inputs=node_config[2:]))
 
     return parsed_config
 

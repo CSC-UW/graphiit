@@ -53,3 +53,20 @@ def PARITY(inputs):
 
 def PAR(inputs):
     return PARITY(inputs)
+
+
+MAP = {
+    'AND': AND,
+    'NAND': NAND,
+    'OR': OR,
+    'NOR': NOR,
+    'COPY': COPY,
+    'NOT': NOT,
+    'XOR': XOR,
+    'MAJORITY': MAJORITY,
+    'MAJ': MAJ,
+    'MINORITY': MINORITY,
+    'MIN': MIN,
+    'PARITY': PARITY,
+    'PAR': PAR,
+}
