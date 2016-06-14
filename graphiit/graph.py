@@ -157,16 +157,16 @@ class Graph(nx.DiGraph):
         return [str(node) for node in self.nodes()]
 
     def pyphi_network(self):
-        # TODO: Make PyPhi maintain node labels
         """Yield a PyPhi network corresponding to the graph. PyPhi node indices
            will match graph node indices."""
-        return pyphi.Network(self.tpm, self.connectivity_matrix)
+        return pyphi.Network(self.tpm, self.connectivity_matrix,
+                             node_labels=self.node_tokens)
 
     def pyphi_subsystem(self):
         """Yield a PyPhi subsystem corresponding to the graph in its current
            state. Background elements are frozen in PyPhi. PyPhi node indicies
            match graph node indices."""
-        net = pyphi.Network(self.tpm, self.connectivity_matrix)
+        net = self.pyphi_network()
         foreground_node_indices = self.get_indices(self.foreground_nodes)
         return pyphi.Subsystem(net, self.state, foreground_node_indices)
 

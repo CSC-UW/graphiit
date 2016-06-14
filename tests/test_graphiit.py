@@ -53,16 +53,17 @@ def test_pretty_print_tpm(fig4_graph):
 
 
 def test_pyphi_integration(fig4_graph):
-    current_state = (1, 0, 0)  # holi format
+    state = (1, 0, 0)
+    fig4_graph.state = (1, 0, 0)
 
-    computed_net = pyphi.Network(fig4_graph.tpm, fig4_graph.connectivity_matrix)
-    computed_sub = pyphi.Subsystem(computed_net, current_state,
-                                   range(computed_net.size))
+    computed_net = fig4_graph.pyphi_network()
+    computed_sub = fig4_graph.pyphi_subsystem()
 
     true_net = pyphi.examples.fig4()
-    true_sub = pyphi.Subsystem(true_net, current_state, range(true_net.size))
+    true_sub = pyphi.Subsystem(true_net, state, true_net.node_indices)
 
     assert computed_net == true_net
+    assert np.array_equal(computed_net.node_labels, ['A', 'B', 'C'])
     assert computed_sub == true_sub
 
 
