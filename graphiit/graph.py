@@ -28,12 +28,12 @@ class Graph(nx.DiGraph):
     #   are made about edge order.
     node_dict_factory = OrderedDict
 
-    def __init__(self, graph_config=[], state={}, background_nodes=[]):
+    def __init__(self, graph_config=None, state=None, background_nodes=None):
         """ Construct a graph."""
         super().__init__()
-        self._add_from_config(graph_config)
-        self.state = state
-        self.background_nodes = background_nodes
+        self._add_from_config(graph_config or [])
+        self.state = state or {}
+        self.background_nodes = background_nodes or []
 
     def _add_from_config(self, config):
         """Enlarge this graph with nodes and edges specified in a Python
