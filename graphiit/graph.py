@@ -5,6 +5,7 @@ from pyphi.convert import loli_index2state
 from . import utils
 from collections import OrderedDict
 
+
 class Graph(nx.DiGraph):
     """ A malleable IIT graph object supporting easy PyPhi calls.
 
