@@ -68,16 +68,32 @@ def parse_graph_config(graph_config):
     Returns:
         list[NodeConfig]
     """
+    all_labels = []
+    all_inputs = set()
+
     parsed_config = []
     for node_config in graph_config:
+
+        label = node_config[0]
+        inputs = node_config[2:]
+
+        all_labels.append(label)
+        all_inputs.update(inputs)
 
         if isinstance(node_config[1], str):
             mechanism = micro_mechanisms.MAP[node_config[1]]
         else:
             mechanism = node_config[1]
 
-        parsed_config.append(NodeConfig(label=node_config[0],
-            mechanism=mechanism, inputs=node_config[2:]))
+        parsed_config.append(NodeConfig(label, mechanism, inputs))
+
+    if all_inputs - set(all_labels):
+        raise ValueError(
+            'Nodes {} are given as inputs but are not specified as nodes in '
+            'the graph'.format(all_inputs - set(all_labels)))
+
+    if len(all_labels) != len(set(all_labels)):
+        raise ValueError('Duplicate node labels provided')
 
     return parsed_config
 

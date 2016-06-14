@@ -105,15 +105,31 @@ def test_tpm(fig4_graph):
     assert np.all(fig4_graph.tpm == true_loli_tpm)
 
 
-def test_parse_graph_config_handles_string_mechanism():
+def test_parse_graph_config():
+    config = [
+        ['A', 'XOR', 'B', 'A'],
+        ['B', 'NOT', 'A'],
+    ]
+    assert(parse_graph_config(config) == [
+        NodeConfig('A', XOR, ['B', 'A']),
+        NodeConfig('B', NOT, ['A']),
+    ])
+
+    # Input 'D' is not actually specified as a node
     config = [
         ['A', 'XOR', 'B', 'C'],
         ['B', 'NOT', 'D'],
     ]
-    assert(parse_graph_config(config) == [
-        NodeConfig('A', XOR, ['B', 'C']),
-        NodeConfig('B', NOT, ['D']),
-    ])
+    with pytest.raises(ValueError):
+        parse_graph_config(config)
+
+    # Duplicate specification of node 'A'
+    config = [
+        ['A', 'NOT', 'A'],
+        ['A', 'COPY', 'A'],
+    ]
+    with pytest.raises(ValueError):
+        parse_graph_config(config)
 
 
 def test_parse_state_config():
