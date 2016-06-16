@@ -1,17 +1,20 @@
 Graphiit
 ~~~~~~~~
 
-Utilities for building PyPhi networks that need to be large and/or malleable.
+Utilities for building `PyPhi <https://github.com/wmayner/pyphi>`_ networks
+that need to be large and/or malleable.
 
 
 Installation
 ~~~~~~~~~~~~
 
-You can install ``graphiit`` from |pypi|:
+You can install ``graphiit`` from `PyPi
+<https://pypi.python.org/pypi/graphiit>`_::
 
     pip install graphiit
 
-Or the latest development version from |github|:
+Or the latest development version from `Github
+<https://github.com/grahamfindlay/graphiit>`_::
 
     pip install git+https://github.com/grahamfindlay/graphiit@develop
 
@@ -66,7 +69,3 @@ Other Functionality
 ~~~~~~~~~~~~~~~~~~~
 
 TODO
-
-
-.. |pypi| `PyPi <https://pypi.python.org/pypi/graphiit/>`_
-.. |github| `Github <https://github.com/grahamfindlay/graphiit>`_
