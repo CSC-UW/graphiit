@@ -144,24 +144,3 @@ def convert_be_tpm_to_le(be_tpm):
         le_tpm[i, :] = be_tpm[be_tpm_row, :]
 
     return le_tpm
-
-def all_possible_be_states(graph):
-    # unused
-    state_index = 0
-    number_of_nodes = len(graph)
-    number_of_states = 2 ** len(graph)
-    while state_index < number_of_states:
-        yield be_index2state(state_index, number_of_nodes)
-        state_index += 1
-
-def powerset(iterable):
-    # unused
-    # https://docs.python.org/2/library/itertools.html
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
-
-
-def bit(boolean):
-    # unused
-    return int(boolean)
