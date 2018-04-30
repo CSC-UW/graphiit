@@ -133,12 +133,11 @@ class Graph(nx.DiGraph):
 
         Not conditioned on background elements. Can piped directly into PyPhi
         """
-        number_of_states = 2 ** len(self)
-        number_of_nodes = len(self)
-        tpm = np.zeros([number_of_states, number_of_nodes])
-        for state_index in range(number_of_states):
-            current_state = le_index2state(state_index, number_of_nodes)
-            tpm[state_index] = utils.predict_next_state(self, current_state)
+        n = len(self)
+        tpm = np.zeros([2 ** n, n])
+
+        for i, state in enumerate(pyphi.utils.all_states(n)):
+            tpm[i] = utils.predict_next_state(self, state)
 
         return tpm
 
