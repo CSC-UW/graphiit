@@ -16,7 +16,7 @@ setup(
     license='GNU General Public License v3.0',
     install_requires=[
       'numpy',
-      'pyphi',
+      'pyphi>=1.0.0',
       'networkx<2.0.0'],
     packages=['graphiit'],
     classifiers=[

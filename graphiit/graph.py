@@ -1,7 +1,8 @@
 import networkx as nx
 import numpy as np
 import pyphi
-from pyphi.convert import loli_index2state
+from pyphi.convert import le_index2state
+
 from . import utils
 from collections import OrderedDict
 
@@ -18,8 +19,8 @@ class Graph(nx.DiGraph):
         state (np.array): Current state of the graph.
         background_nodes (list): Nodes currently frozen as background.
         foreground_nodes (list): All nodes not currently frozen as background.
-        tpm (np.array): State-by-node TPM of the full system in LOLI format.
-            Not conditioned on background elements!
+        tpm (np.array): State-by-node TPM of the full system in little endian
+            format. Not conditioned on background elements!
         connectivity_matrix (np.array): Connectivity matrix of full system.
         node_tokens (list(str)): Printable node IDs in case you didn't give them
             string objects
@@ -128,20 +129,15 @@ class Graph(nx.DiGraph):
 
     @property
     def tpm(self):
-        """Yield the State-by-node LOLI tpm for the full system. Not conditioned
-           on background elements. Can be piped right into PyPhi."""
-        return self.loli_tpm
+        """Yield the State-by-node little endian tpm for the full system.
 
-    @property
-    def loli_tpm(self):
-        # TODO: Condition on background elements
-        """Yield the State-by-node LOLI tpm for the full system. Not conditioned
-           on background elements."""
+        Not conditioned on background elements. Can piped directly into PyPhi
+        """
         number_of_states = 2 ** len(self)
         number_of_nodes = len(self)
         tpm = np.zeros([number_of_states, number_of_nodes])
         for state_index in range(number_of_states):
-            current_state = loli_index2state(state_index, number_of_nodes)
+            current_state = le_index2state(state_index, number_of_nodes)
             tpm[state_index] = utils.predict_next_state(self, current_state)
 
         return tpm

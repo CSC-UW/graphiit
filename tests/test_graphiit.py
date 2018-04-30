@@ -16,7 +16,7 @@ def test_connectivity_matrix(fig4_graph):
         [0, 1, 1],
         [1, 0, 1],
         [1, 1, 0]
-    ])  # Holi format
+    ])  # Big Endian format
     assert np.all(fig4_graph.connectivity_matrix == true_connectivity_matrix)
 
 
@@ -67,8 +67,8 @@ def test_pyphi_integration(fig4_graph):
     assert computed_sub == true_sub
 
 
-def test_holi_tpm_to_loli():
-    holi_tpm = np.array([
+def test_be_tpm_to_le():
+    be_tpm = np.array([
         [0, 0, 0],
         [1, 0, 0],
         [1, 0, 1],
@@ -78,7 +78,7 @@ def test_holi_tpm_to_loli():
         [1, 0, 0],
         [1, 1, 0]
     ])
-    true_loli_tpm = np.array([
+    true_le_tpm = np.array([
         [0, 0, 0],
         [0, 0, 1],
         [1, 0, 1],
@@ -88,12 +88,12 @@ def test_holi_tpm_to_loli():
         [1, 0, 1],
         [1, 1, 0]
     ])
-    computed_loli_tpm = convert_holi_tpm_to_loli(holi_tpm)
-    assert np.all(computed_loli_tpm == true_loli_tpm)
+    computed_le_tpm = convert_be_tpm_to_le(be_tpm)
+    assert np.all(computed_le_tpm == true_le_tpm)
 
 
 def test_tpm(fig4_graph):
-    true_loli_tpm = np.array([
+    true_le_tpm = np.array([
         [0, 0, 0],
         [0, 0, 1],
         [1, 0, 1],
@@ -103,7 +103,7 @@ def test_tpm(fig4_graph):
         [1, 0, 1],
         [1, 1, 0]
     ])
-    assert np.all(fig4_graph.tpm == true_loli_tpm)
+    assert np.all(fig4_graph.tpm == true_le_tpm)
 
 
 def test_parse_graph_config():

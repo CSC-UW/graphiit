@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 from itertools import chain, combinations
-from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
+from pyphi.convert import le_index2state, be_index2state, state2be_index
 from collections import namedtuple
 
 from . import micro_mechanisms
@@ -125,7 +125,7 @@ def format_node_tokens_by_state(tokens, states, mode='fore'):
 def pretty_print_tpm(node_tokens, tpm):
     number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
-        current_state = loli_index2state(state_index, number_of_nodes)
+        current_state = le_index2state(state_index, number_of_nodes)
         next_state = tpm[state_index, :]
         pretty_tokens = format_node_tokens_by_state(node_tokens, current_state,
                                                     mode='back')
@@ -134,24 +134,24 @@ def pretty_print_tpm(node_tokens, tpm):
         print(':'.join(pretty_tokens))
 
 
-def convert_holi_tpm_to_loli(holi_tpm):
+def convert_be_tpm_to_le(be_tpm):
     # Assumes state by node format
-    states, nodes = holi_tpm.shape
-    loli_tpm = np.zeros([states, nodes])
+    states, nodes = be_tpm.shape
+    le_tpm = np.zeros([states, nodes])
     for i in range(states):
-        loli_state = loli_index2state(i, nodes)
-        holi_tpm_row = state2holi_index(loli_state)
-        loli_tpm[i, :] = holi_tpm[holi_tpm_row, :]
+        le_state = le_index2state(i, nodes)
+        be_tpm_row = state2be_index(le_state)
+        le_tpm[i, :] = be_tpm[be_tpm_row, :]
 
-    return loli_tpm
+    return le_tpm
 
-def all_possible_holi_states(graph):
+def all_possible_be_states(graph):
     # unused
     state_index = 0
     number_of_nodes = len(graph)
     number_of_states = 2 ** len(graph)
     while state_index < number_of_states:
-        yield holi_index2state(state_index, number_of_nodes)
+        yield be_index2state(state_index, number_of_nodes)
         state_index += 1
 
 def powerset(iterable):
