@@ -1,7 +1,6 @@
 import networkx as nx
 import numpy as np
 import pyphi
-from pyphi.convert import le_index2state
 
 from . import utils
 from collections import OrderedDict

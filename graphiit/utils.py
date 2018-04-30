@@ -1,7 +1,6 @@
 import networkx as nx
 import numpy as np
-from itertools import chain, combinations
-from pyphi.convert import le_index2state, be_index2state, state2be_index
+from pyphi.convert import le_index2state, state2be_index
 from collections import namedtuple
 
 from . import micro_mechanisms
