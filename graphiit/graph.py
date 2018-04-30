@@ -1,9 +1,10 @@
 import networkx as nx
 import numpy as np
 import pyphi
-from pyphi.convert import loli_index2state
+
 from . import utils
 from collections import OrderedDict
+
 
 class Graph(nx.DiGraph):
     """ A malleable IIT graph object supporting easy PyPhi calls.
@@ -17,8 +18,8 @@ class Graph(nx.DiGraph):
         state (np.array): Current state of the graph.
         background_nodes (list): Nodes currently frozen as background.
         foreground_nodes (list): All nodes not currently frozen as background.
-        tpm (np.array): State-by-node TPM of the full system in LOLI format.
-            Not conditioned on background elements!
+        tpm (np.array): State-by-node TPM of the full system in little endian
+            format. Not conditioned on background elements!
         connectivity_matrix (np.array): Connectivity matrix of full system.
         node_tokens (list(str)): Printable node IDs in case you didn't give them
             string objects
@@ -28,12 +29,12 @@ class Graph(nx.DiGraph):
     #   are made about edge order.
     node_dict_factory = OrderedDict
 
-    def __init__(self, graph_config=[], state={}, background_nodes=[]):
+    def __init__(self, graph_config=None, state=None, background_nodes=None):
         """ Construct a graph."""
         super().__init__()
-        self._add_from_config(graph_config)
-        self.state = state
-        self.background_nodes = background_nodes
+        self._add_from_config(graph_config or [])
+        self.state = state or {}
+        self.background_nodes = background_nodes or []
 
     def _add_from_config(self, config):
         """Enlarge this graph with nodes and edges specified in a Python
@@ -127,21 +128,15 @@ class Graph(nx.DiGraph):
 
     @property
     def tpm(self):
-        """Yield the State-by-node LOLI tpm for the full system. Not conditioned
-           on background elements. Can be piped right into PyPhi."""
-        return self.loli_tpm
+        """Yield the State-by-node little endian tpm for the full system.
 
-    @property
-    def loli_tpm(self):
-        # TODO: Condition on background elements
-        """Yield the State-by-node LOLI tpm for the full system. Not conditioned
-           on background elements."""
-        number_of_states = 2 ** len(self)
-        number_of_nodes = len(self)
-        tpm = np.zeros([number_of_states, number_of_nodes])
-        for state_index in range(number_of_states):
-            current_state = loli_index2state(state_index, number_of_nodes)
-            tpm[state_index] = utils.predict_next_state(self, current_state)
+        Not conditioned on background elements. Can piped directly into PyPhi
+        """
+        n = len(self)
+        tpm = np.zeros([2 ** n, n])
+
+        for i, state in enumerate(pyphi.utils.all_states(n)):
+            tpm[i] = utils.predict_next_state(self, state)
 
         return tpm
 
@@ -156,16 +151,16 @@ class Graph(nx.DiGraph):
         return [str(node) for node in self.nodes()]
 
     def pyphi_network(self):
-        # TODO: Make PyPhi maintain node labels
         """Yield a PyPhi network corresponding to the graph. PyPhi node indices
            will match graph node indices."""
-        return pyphi.Network(self.tpm, self.connectivity_matrix)
+        return pyphi.Network(self.tpm, self.connectivity_matrix,
+                             node_labels=self.node_tokens)
 
     def pyphi_subsystem(self):
         """Yield a PyPhi subsystem corresponding to the graph in its current
            state. Background elements are frozen in PyPhi. PyPhi node indicies
            match graph node indices."""
-        net = pyphi.Network(self.tpm, self.connectivity_matrix)
+        net = self.pyphi_network()
         foreground_node_indices = self.get_indices(self.foreground_nodes)
         return pyphi.Subsystem(net, self.state, foreground_node_indices)
 
@@ -183,11 +178,4 @@ class Graph(nx.DiGraph):
 
     @state.setter
     def state(self, state):
-        if isinstance(state, list):
-            self._state = np.array(state)
-        elif isinstance(state, np.ndarray):
-            self._state = state
-        elif isinstance(state, dict):
-            self._state = utils.parse_state_config(self, state)
-        else:
-            raise("Unrecognized state specification")
+        self._state = utils.parse_state_config(self, state)

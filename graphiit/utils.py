@@ -1,8 +1,10 @@
 import networkx as nx
 import numpy as np
-from itertools import chain, combinations
-from pyphi.convert import loli_index2state, holi_index2state, state2holi_index
+from pyphi.convert import le_index2state, state2be_index
 from collections import namedtuple
+
+from . import micro_mechanisms
+
 
 def predict_next_state(graph, current_state):
     # TODO: Allow current_state to be specified using a config.
@@ -27,33 +29,70 @@ def predict_next_state(graph, current_state):
 
     return next_state
 
+
 def parse_state_config(graph, state_config):
+    """Parse a state configuration into an actual state."""
     if not state_config:
         return None
+
+    if isinstance(state_config, (tuple, list, np.ndarray)):
+        if len(graph) != len(state_config):
+            raise ValueError(
+                "Mis-sized state config. States passed in tuple form must "
+                "specify the state of every node in the graph, no more.")
+        return np.array(state_config)
+
+    if ('on' in state_config) and not ('off' in state_config):
+        on_nodes = set(state_config['on'])
+    elif ('off' in state_config) and not ('on' in state_config):
+        off_nodes = set(state_config['off'])
+        all_nodes = set(graph.nodes())
+        on_nodes = all_nodes - off_nodes
     else:
-        if ('on' in state_config) and not ('off' in state_config):
-            on_nodes = set(state_config['on'])
-        elif ('off' in state_config) and not ('on' in state_config):
-            off_nodes = set(state_config['off'])
-            all_nodes = set(graph.nodes())
-            on_nodes = all_nodes - off_nodes
-        else:
-            raise("State config cannot expliticly specifiy both on and off \
-                  nodes")
+        raise ValueError(
+            "State config cannot specifiy both on and off nodes")
 
     global_state = np.zeros(len(graph))
     global_state[graph.get_indices(on_nodes)] = 1
 
     return global_state
 
+
+NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'])
+
+
 def parse_graph_config(graph_config):
-    NodeConfig = namedtuple('NodeConfig', ['label', 'mechanism', 'inputs'],
-                            verbose=False)
-    parsed_config = list()
+    """Parse a graph configuration list.
+
+    Returns:
+        list[NodeConfig]
+    """
+    all_labels = []
+    all_inputs = set()
+
+    parsed_config = []
     for node_config in graph_config:
-        parsed_config.append(NodeConfig(node_config[0],     # label
-                                        node_config[1],     # mechanism
-                                        node_config[2:]))   # labels of inputs
+
+        label = node_config[0]
+        inputs = node_config[2:]
+
+        all_labels.append(label)
+        all_inputs.update(inputs)
+
+        if isinstance(node_config[1], str):
+            mechanism = micro_mechanisms.MAP[node_config[1]]
+        else:
+            mechanism = node_config[1]
+
+        parsed_config.append(NodeConfig(label, mechanism, inputs))
+
+    if all_inputs - set(all_labels):
+        raise ValueError(
+            'Nodes {} are given as inputs but are not specified as nodes in '
+            'the graph'.format(all_inputs - set(all_labels)))
+
+    if len(all_labels) != len(set(all_labels)):
+        raise ValueError('Duplicate node labels provided')
 
     return parsed_config
 
@@ -85,7 +124,7 @@ def format_node_tokens_by_state(tokens, states, mode='fore'):
 def pretty_print_tpm(node_tokens, tpm):
     number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
-        current_state = loli_index2state(state_index, number_of_nodes)
+        current_state = le_index2state(state_index, number_of_nodes)
         next_state = tpm[state_index, :]
         pretty_tokens = format_node_tokens_by_state(node_tokens, current_state,
                                                     mode='back')
@@ -94,34 +133,13 @@ def pretty_print_tpm(node_tokens, tpm):
         print(':'.join(pretty_tokens))
 
 
-def convert_holi_tpm_to_loli(holi_tpm):
+def convert_be_tpm_to_le(be_tpm):
     # Assumes state by node format
-    states, nodes = holi_tpm.shape
-    loli_tpm = np.zeros([states, nodes])
+    states, nodes = be_tpm.shape
+    le_tpm = np.zeros([states, nodes])
     for i in range(states):
-        loli_state = loli_index2state(i, nodes)
-        holi_tpm_row = state2holi_index(loli_state)
-        loli_tpm[i, :] = holi_tpm[holi_tpm_row, :]
+        le_state = le_index2state(i, nodes)
+        be_tpm_row = state2be_index(le_state)
+        le_tpm[i, :] = be_tpm[be_tpm_row, :]
 
-    return loli_tpm
-
-def all_possible_holi_states(graph):
-    # unused
-    state_index = 0
-    number_of_nodes = len(graph)
-    number_of_states = 2 ** len(graph)
-    while state_index < number_of_states:
-        yield holi_index2state(state_index, number_of_nodes)
-        state_index += 1
-
-def powerset(iterable):
-    # unused
-    # https://docs.python.org/2/library/itertools.html
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
-
-
-def bit(boolean):
-    # unused
-    return int(boolean)
+    return le_tpm
