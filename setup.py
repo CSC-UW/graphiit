@@ -19,6 +19,7 @@ setup(
         'pyphi>=1.0.0',
         'networkx<2.0.0'],
     packages=['graphiit'],
+    include_package_data=True,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
