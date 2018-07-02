@@ -7,12 +7,16 @@ try:
 except ImportError:
     from distutils.core import setup
 
+with open('README.rst') as f:
+    readme = f.read()
+
 setup(
     name='graphiit',
     version='0.1.0',
-    description='Python library for building PyPhi network graphs',
     author='Graham Findlay',
     url='http://github.com/grahamfindlay/graphiit',
+    description='Python library for building PyPhi network graphs',
+    long_description=readme,
     license='GNU General Public License v3.0',
     install_requires=[
         'numpy',
