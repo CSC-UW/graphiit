@@ -1,10 +1,10 @@
-# Used by pip to find and resolve dependencies. 
-# Abstract dependencies are specified in setup.py. 
-# Concrete dependencies are specified here. 
+# Used by pip to find and resolve dependencies.
+# Abstract dependencies are specified in setup.py.
+# Concrete dependencies are specified here.
 
 # Install from local git repo, then setup.py
 -e .
 
-# test requirements
+# dev requirements
 pytest
-
+twine
