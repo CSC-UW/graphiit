@@ -12,7 +12,7 @@ with open('README.rst') as f:
 
 setup(
     name='graphiit',
-    version='0.1.0',
+    version='0.1.1',
     author='Graham Findlay',
     url='http://github.com/grahamfindlay/graphiit',
     description='Python library for building PyPhi network graphs',
@@ -20,7 +20,7 @@ setup(
     license='GNU General Public License v3.0',
     install_requires=[
         'numpy',
-        'pyphi>=1.0.0',
+        'pyphi>=1.1.0',
         'networkx<2.0.0'],
     packages=['graphiit'],
     include_package_data=True,
