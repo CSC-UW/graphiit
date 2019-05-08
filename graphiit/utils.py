@@ -32,7 +32,10 @@ def predict_next_state(graph, current_state):
 
 def parse_state_config(graph, state_config):
     """Parse a state configuration into an actual state."""
-    if not state_config:
+    if isinstance(state_config, np.ndarray) and state_config.size == 0:
+        return None
+
+    if isinstance(state_config, (tuple, list, dict)) and not state_config:
         return None
 
     if isinstance(state_config, (tuple, list, np.ndarray)):
