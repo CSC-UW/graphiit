@@ -62,7 +62,7 @@ You can then use this function in the graph configuration:
     >>> graph_config = [('A', ALWAYS_ON, 'A')]
     >>> graph = Graph(graph_config)
 
-See ``graphiit.micro_mechanisms`` for implementations of the basic mechanisms.
+See ``graphiit.mechanisms`` for implementations of the basic mechanisms.
 
 
 Other Functionality
