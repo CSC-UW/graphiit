@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import networkx as nx
 import numpy as np
-from pyphi.convert import le_index2state, state2be_index
+import pyphi
 
 from . import mechanisms
 
@@ -102,9 +102,9 @@ def parse_graph_config(graph_config):
     return parsed_config
 
 
-def format_node_tokens_by_state(tokens, states, mode="fore"):
-    assert len(tokens) is len(states)
-    assert mode is "fore" or "back"
+def format_node_labels_by_state(node_labels, states, mode="fore"):
+    assert len(node_labels) is len(states)
+    assert mode in ["fore", "back"]
 
     CYAN_FORE = "\033[36m"
     RED_FORE = "\033[31m"
@@ -113,28 +113,29 @@ def format_node_tokens_by_state(tokens, states, mode="fore"):
     END = "\033[0m"
 
     new_tokens = list()
-    for token, state in zip(tokens, states):
-        if state and mode is "fore":
-            new_tokens.append(CYAN_FORE + token + END)
-        if state and mode is "back":
-            new_tokens.append(WHITE_BACK + token + END)
-        if not state and mode is "fore":
-            new_tokens.append(RED_FORE + token + END)
-        if not state and mode is "back":
-            new_tokens.append(BLACK_BACK + token + END)
+    for label, state in zip(node_labels, states):
+        label = str(label)
+        if state and mode == "fore":
+            new_tokens.append(CYAN_FORE + label + END)
+        if state and mode == "back":
+            new_tokens.append(WHITE_BACK + label + END)
+        if not state and mode == "fore":
+            new_tokens.append(RED_FORE + label + END)
+        if not state and mode == "back":
+            new_tokens.append(BLACK_BACK + label + END)
 
     return new_tokens
 
 
-def pretty_print_tpm(node_tokens, tpm):
+def pretty_print_tpm(node_labels, tpm):
     number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
-        current_state = le_index2state(state_index, number_of_nodes)
+        current_state = pyphi.convert.le_index2state(state_index, number_of_nodes)
         next_state = tpm[state_index, :]
-        pretty_tokens = format_node_tokens_by_state(
-            node_tokens, current_state, mode="back"
+        pretty_tokens = format_node_labels_by_state(
+            node_labels, current_state, mode="back"
         )
-        pretty_tokens = format_node_tokens_by_state(
+        pretty_tokens = format_node_labels_by_state(
             pretty_tokens, next_state, mode="fore"
         )
         print(":".join(pretty_tokens))
@@ -145,8 +146,8 @@ def convert_be_tpm_to_le(be_tpm):
     states, nodes = be_tpm.shape
     le_tpm = np.zeros([states, nodes])
     for i in range(states):
-        le_state = le_index2state(i, nodes)
-        be_tpm_row = state2be_index(le_state)
+        le_state = pyphi.convert.le_index2state(i, nodes)
+        be_tpm_row = pyphi.convert.state2be_index(le_state)
         le_tpm[i, :] = be_tpm[be_tpm_row, :]
 
     return le_tpm

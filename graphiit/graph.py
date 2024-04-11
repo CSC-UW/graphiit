@@ -22,7 +22,7 @@ class Graph(nx.DiGraph):
         tpm (np.array): State-by-node TPM of the full system in little endian
             format. Not conditioned on background elements!
         connectivity_matrix (np.array): Connectivity matrix of full system.
-        node_tokens (list(str)): Printable node IDs in case you didn't give them
+        node_labels (list): Printable node IDs in case you didn't give them
             string objects
     """
 
@@ -32,7 +32,7 @@ class Graph(nx.DiGraph):
     node_dict_factory = OrderedDict
 
     def __init__(self, graph_config=None, state=None, background_nodes=None):
-        """ Construct a graph."""
+        """Construct a graph."""
         super().__init__()
         graph_config = graph_config or []
         self.config = graph_config
@@ -42,11 +42,11 @@ class Graph(nx.DiGraph):
 
     def _add_from_config(self, config):
         """Enlarge this graph with nodes and edges specified in a Python
-           configuration object.
+        configuration object.
 
-           Args:
-               config (list(tuple)): Specifies nodes, edges, and labels to add.
-           """
+        Args:
+            config (list(tuple)): Specifies nodes, edges, and labels to add.
+        """
         parsed_config = utils.parse_graph_config(config)
 
         # add nodes before adding any edges,
@@ -60,7 +60,7 @@ class Graph(nx.DiGraph):
                 self.add_edge(input, label)
 
     def __repr__(self):
-        return f'Graph({self.config})'
+        return f"Graph({self.config})"
 
     def __str__(self):
         return repr(self)
@@ -88,7 +88,7 @@ class Graph(nx.DiGraph):
 
     def subgraph(self, subgraph_nodes):
         """Create a subgraph containing only the nodes provided and edges
-           between them. Background elements and state are inherited."""
+        between them. Background elements and state are inherited."""
         subgraph = super().subgraph(subgraph_nodes)
         subgraph_node_indices = self.get_indices(subgraph.nodes())
         subgraph.state = self.state[subgraph_node_indices]
@@ -104,7 +104,7 @@ class Graph(nx.DiGraph):
 
     def markov_blanket(self, node):
         """Yield a subgraph induced on the node, its parents, children, and
-           children's parents."""
+        children's parents."""
         parents = set(self.pred[node])
         children = set(self.succ[node])
         childrens_parents = set()
@@ -126,13 +126,13 @@ class Graph(nx.DiGraph):
 
     def get_index(self, node):
         """Get the index of a single node, according to the graph's node order."""
-        return self.nodes().index(node)
+        return self.nodes[node]["index"]
 
     def get_indices(self, nodes):
         """Get a a list of node indices according to graph order. The ith entry
-           in the returned list is the index of the ith node in the input list.
-           PyPhi networks spawned using Graph methods maintain these node
-           indices."""
+        in the returned list is the index of the ith node in the input list.
+        PyPhi networks spawned using Graph methods maintain these node
+        indices."""
         return [self.get_index(node) for node in nodes]
 
     def node_indices(self):
@@ -160,7 +160,7 @@ class Graph(nx.DiGraph):
         Not conditioned on background elements. Can piped directly into PyPhi
         """
         n = len(self)
-        tpm = np.zeros([2 ** n, n])
+        tpm = np.zeros([2**n, n])
 
         for i, state in enumerate(pyphi.utils.all_states(n)):
             tpm[i] = utils.predict_next_state(self, state)
@@ -168,29 +168,27 @@ class Graph(nx.DiGraph):
         return tpm
 
     @property
-    def connectivity_matrix(self):
+    def cm(self):
         """Yields a np.array connectivity matrix for the graph.
-           Can be piped right into PyPhi."""
-        return nx.to_numpy_matrix(self)
+        Can be piped right into PyPhi."""
+        return nx.adjacency_matrix(self).todense()
 
     @property
-    def node_tokens(self):
-        return [str(node) for node in self.nodes()]
+    def node_labels(self):
+        return [node for node in self.nodes()]
 
     def pyphi_network(self):
         """Yield a PyPhi network corresponding to the graph. PyPhi node indices
-           will match graph node indices."""
-        return pyphi.Network(
-            self.tpm, self.connectivity_matrix, node_labels=self.node_tokens
-        )
+        will match graph node indices."""
+        return pyphi.Network(self.tpm, self.cm, self.node_labels)
 
     def pyphi_subsystem(self):
         """Yield a PyPhi subsystem corresponding to the graph in its current
-           state. Background elements are frozen in PyPhi. PyPhi node indicies
-           match graph node indices."""
+        state. Background elements are frozen in PyPhi. PyPhi node indicies
+        match graph node indices."""
         net = self.pyphi_network()
         foreground_node_indices = self.get_indices(self.foreground_nodes)
-        return pyphi.Subsystem(net, self.state, foreground_node_indices)
+        raise NotImplementedError("This method is not yet implemented for IIT 4.0")
 
     @property
     def state(self):

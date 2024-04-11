@@ -7,7 +7,7 @@ from graphiit.mechanisms import NOT, XOR
 from graphiit.utils import (
     NodeConfig,
     convert_be_tpm_to_le,
-    format_node_tokens_by_state,
+    format_node_labels_by_state,
     parse_graph_config,
     parse_state_config,
     pretty_print_tpm,
@@ -16,13 +16,13 @@ from graphiit.utils import (
 
 def test_format_node_tokens_by_state(fig4_graph):
     state = (1, 0, 0)
-    fore = format_node_tokens_by_state(fig4_graph.node_tokens, state, mode="fore")
+    fore = format_node_labels_by_state(fig4_graph.node_tokens, state, mode="fore")
     print("Tokens formatted by foreground color, should be cyan:red:red")
     print(":".join(fore))
-    back = format_node_tokens_by_state(fig4_graph.node_tokens, state, mode="back")
+    back = format_node_labels_by_state(fig4_graph.node_tokens, state, mode="back")
     print("Tokens formatted by background color, should be white:black:black")
     print(":".join(back))
-    fore_and_back = format_node_tokens_by_state(fore, state, mode="back")
+    fore_and_back = format_node_labels_by_state(fore, state, mode="back")
     print("Tokens formatter by both FG and BG.")
     print(":".join(fore_and_back))
 
