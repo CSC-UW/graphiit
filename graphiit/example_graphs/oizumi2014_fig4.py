@@ -1,4 +1,4 @@
-from graphiit.mechanisms import AND, OR, XOR
+from graphiit.graphiit.node_functions import AND, OR, XOR
 
 graph_config = [
     ("A", OR, "B", "C"),

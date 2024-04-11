@@ -1,71 +1,14 @@
 from collections import namedtuple
 
-import networkx as nx
 import numpy as np
 import pyphi
 
-from . import mechanisms
-
-
-# TODO: Allow current_state to be specified using a config.
-def predict_next_state(graph, current_state):
-    """Yield the next state of a graph, given a current state.
-
-    Memory friendly: doesn't require a TPM.
-    """
-    next_state = np.zeros(len(current_state))
-    # the following line shouldn't be necessary, but the nx API is broken
-    network_mechanisms = graph.mechanisms()
-    for node in graph.nodes():
-        node_index = graph.get_index(node)
-        input_nodes = graph.parents(node)
-        if input_nodes:
-            input_vector = [current_state[graph.get_index(x)] for x in input_nodes]
-            node_mechanism = network_mechanisms[node]
-            next_state[node_index] = node_mechanism(input_vector)
-        else:
-            # Here we define the state of an inputless node as persistent.
-            #   This may not be your intented behavior!
-            next_state[node_index] = current_state[node_index]
-
-    return next_state
-
-
-def parse_state_config(graph, state_config):
-    """Parse a state configuration into an actual state."""
-    if isinstance(state_config, np.ndarray) and state_config.size == 0:
-        return None
-
-    if isinstance(state_config, (tuple, list, dict)) and not state_config:
-        return None
-
-    if isinstance(state_config, (tuple, list, np.ndarray)):
-        if len(graph) != len(state_config):
-            raise ValueError(
-                "Mis-sized state config. States passed in tuple form must "
-                "specify the state of every node in the graph, no more."
-            )
-        return np.array(state_config)
-
-    if ("on" in state_config) and not ("off" in state_config):
-        on_nodes = set(state_config["on"])
-    elif ("off" in state_config) and not ("on" in state_config):
-        off_nodes = set(state_config["off"])
-        all_nodes = set(graph.nodes())
-        on_nodes = all_nodes - off_nodes
-    else:
-        raise ValueError("State config cannot specifiy both on and off nodes")
-
-    global_state = np.zeros(len(graph))
-    global_state[graph.get_indices(on_nodes)] = 1
-
-    return global_state
-
+from . import node_functions
 
 NodeConfig = namedtuple("NodeConfig", ["label", "mechanism", "inputs"])
 
 
-def parse_graph_config(graph_config):
+def parse_graph_config(graph_config: dict) -> "list[NodeConfig]":
     """Parse a graph configuration list.
 
     Returns:
@@ -84,7 +27,7 @@ def parse_graph_config(graph_config):
         all_inputs.update(inputs)
 
         if isinstance(node_config[1], str):
-            mechanism = mechanisms.MAP[node_config[1]]
+            mechanism = node_functions.MAP[node_config[1]]
         else:
             mechanism = node_config[1]
 
@@ -102,7 +45,9 @@ def parse_graph_config(graph_config):
     return parsed_config
 
 
-def format_node_labels_by_state(node_labels, states, mode="fore"):
+def format_node_labels_by_state(
+    node_labels: list, states: list, mode: str = "fore"
+) -> "list[str]":
     assert len(node_labels) is len(states)
     assert mode in ["fore", "back"]
 
@@ -112,22 +57,22 @@ def format_node_labels_by_state(node_labels, states, mode="fore"):
     BLACK_BACK = "\033[40m"
     END = "\033[0m"
 
-    new_tokens = list()
+    new_labels = list()
     for label, state in zip(node_labels, states):
         label = str(label)
         if state and mode == "fore":
-            new_tokens.append(CYAN_FORE + label + END)
+            new_labels.append(CYAN_FORE + label + END)
         if state and mode == "back":
-            new_tokens.append(WHITE_BACK + label + END)
+            new_labels.append(WHITE_BACK + label + END)
         if not state and mode == "fore":
-            new_tokens.append(RED_FORE + label + END)
+            new_labels.append(RED_FORE + label + END)
         if not state and mode == "back":
-            new_tokens.append(BLACK_BACK + label + END)
+            new_labels.append(BLACK_BACK + label + END)
 
-    return new_tokens
+    return new_labels
 
 
-def pretty_print_tpm(node_labels, tpm):
+def pretty_print_tpm(node_labels: list, tpm: np.ndarray):
     number_of_states, number_of_nodes = tpm.shape
     for state_index in range(number_of_states):
         current_state = pyphi.convert.le_index2state(state_index, number_of_nodes)
@@ -139,15 +84,3 @@ def pretty_print_tpm(node_labels, tpm):
             pretty_tokens, next_state, mode="fore"
         )
         print(":".join(pretty_tokens))
-
-
-def convert_be_tpm_to_le(be_tpm):
-    # Assumes state by node format
-    states, nodes = be_tpm.shape
-    le_tpm = np.zeros([states, nodes])
-    for i in range(states):
-        le_state = pyphi.convert.le_index2state(i, nodes)
-        be_tpm_row = pyphi.convert.state2be_index(le_state)
-        le_tpm[i, :] = be_tpm[be_tpm_row, :]
-
-    return le_tpm

@@ -3,23 +3,21 @@ import pytest
 
 from graphiit import Graph
 from graphiit.example_graphs import oizumi2014_fig4
-from graphiit.mechanisms import NOT, XOR
+from graphiit.graphiit.node_functions import NOT, XOR
 from graphiit.utils import (
     NodeConfig,
-    convert_be_tpm_to_le,
-    format_node_labels_by_state,
     parse_graph_config,
-    parse_state_config,
+    format_node_labels_by_state,
     pretty_print_tpm,
 )
 
 
-def test_format_node_tokens_by_state(fig4_graph):
+def test_format_node_labels_by_state(fig4_graph):
     state = (1, 0, 0)
-    fore = format_node_labels_by_state(fig4_graph.node_tokens, state, mode="fore")
+    fore = format_node_labels_by_state(fig4_graph.node_labels, state, mode="fore")
     print("Tokens formatted by foreground color, should be cyan:red:red")
     print(":".join(fore))
-    back = format_node_labels_by_state(fig4_graph.node_tokens, state, mode="back")
+    back = format_node_labels_by_state(fig4_graph.node_labels, state, mode="back")
     print("Tokens formatted by background color, should be white:black:black")
     print(":".join(back))
     fore_and_back = format_node_labels_by_state(fore, state, mode="back")
@@ -29,36 +27,7 @@ def test_format_node_tokens_by_state(fig4_graph):
 
 def test_pretty_print_tpm(fig4_graph):
     print("Pretty printing figure 4 TPM")
-    pretty_print_tpm(fig4_graph.node_tokens, fig4_graph.tpm)
-
-
-def test_be_tpm_to_le():
-    be_tpm = np.array(
-        [
-            [0, 0, 0],
-            [1, 0, 0],
-            [1, 0, 1],
-            [1, 0, 1],
-            [0, 0, 1],
-            [1, 1, 1],
-            [1, 0, 0],
-            [1, 1, 0],
-        ]
-    )
-    true_le_tpm = np.array(
-        [
-            [0, 0, 0],
-            [0, 0, 1],
-            [1, 0, 1],
-            [1, 0, 0],
-            [1, 0, 0],
-            [1, 1, 1],
-            [1, 0, 1],
-            [1, 1, 0],
-        ]
-    )
-    computed_le_tpm = convert_be_tpm_to_le(be_tpm)
-    assert np.all(computed_le_tpm == true_le_tpm)
+    pretty_print_tpm(fig4_graph.node_labels, fig4_graph.tpm)
 
 
 def test_parse_graph_config():
@@ -84,21 +53,21 @@ def test_parse_state_config():
 
     # State too large
     with pytest.raises(ValueError):
-        parse_state_config(graph, (0, 1, 0, 1))
+        graph.parse_state_config((0, 1, 0, 1))
 
     config = (0, 1, 0)
-    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
 
     config = [0, 1, 0]
-    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
 
     config = {"on": ["B"]}
-    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
 
     config = {"off": ["A", "C"]}
-    assert np.array_equal(parse_state_config(graph, config), (0, 1, 0))
+    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
 
     # Can't specify both on and off states
     with pytest.raises(ValueError):
         config = {"off": ["A", "C"], "on": ["B"]}
-        parse_state_config(graph, config)
+        graph.parse_state_config(config)

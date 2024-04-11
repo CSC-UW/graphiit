@@ -1,7 +1,5 @@
 # Lambdas avoided for easier debugging
 
-import numpy as np
-
 
 def AND(inputs):
     return sum(inputs) == len(inputs)
@@ -34,14 +32,15 @@ def XOR(inputs):
 
 
 def MAJORITY(inputs):
-    return sum(inputs) > len(inputs)/2
+    return sum(inputs) > len(inputs) / 2
 
 
 MAJ = MAJORITY
 
 
 def MINORITY(inputs):
-    return sum(inputs) <= len(inputs)/2
+    return sum(inputs) <= len(inputs) / 2
+
 
 MIN = MINORITY
 
@@ -55,17 +54,17 @@ def PAR(inputs):
 
 
 MAP = {
-    'AND': AND,
-    'NAND': NAND,
-    'OR': OR,
-    'NOR': NOR,
-    'COPY': COPY,
-    'NOT': NOT,
-    'XOR': XOR,
-    'MAJORITY': MAJORITY,
-    'MAJ': MAJ,
-    'MINORITY': MINORITY,
-    'MIN': MIN,
-    'PARITY': PARITY,
-    'PAR': PAR,
+    "AND": AND,
+    "NAND": NAND,
+    "OR": OR,
+    "NOR": NOR,
+    "COPY": COPY,
+    "NOT": NOT,
+    "XOR": XOR,
+    "MAJORITY": MAJORITY,
+    "MAJ": MAJ,
+    "MINORITY": MINORITY,
+    "MIN": MIN,
+    "PARITY": PARITY,
+    "PAR": PAR,
 }
