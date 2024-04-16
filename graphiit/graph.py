@@ -199,6 +199,9 @@ class Graph(nx.DiGraph):
         """
         return self._state.astype(int)
 
+    def get_state(self, nodes: list = None) -> np.ndarray:
+        return self.state[self.get_indices(nodes)]
+
     @state.setter
     def state(self, state):
         self._state = self.parse_state_config(state)
