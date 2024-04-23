@@ -157,7 +157,7 @@ class Graph(nx.DiGraph):
             }
         )
 
-    def get_state_array(self, nodes=None) -> np.ndarray:
+    def get_state_array(self, nodes=None, dtype=int) -> np.ndarray:
         """The current state of the system, as a numpy array.
 
         If the state has not been set, np.NaNs will be returned.
@@ -166,7 +166,7 @@ class Graph(nx.DiGraph):
         Example 3: graph.get_state_array() = np.array([np.nan, np.nan, np.nan])
         """
         node_states = self.get_state_dict(nodes)
-        return np.array(list(node_states.values()))
+        return np.array(list(node_states.values()), dtype=dtype)
 
     def input_nodes(self, node) -> list:
         """Yield the inputs nodes to a node.
