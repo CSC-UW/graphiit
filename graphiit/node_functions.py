@@ -53,6 +53,10 @@ def PAR(inputs):
     return PARITY(inputs)
 
 
+def MAXENT(inputs):
+    return 0.5
+
+
 MAP = {
     "AND": AND,
     "NAND": NAND,
@@ -67,4 +71,5 @@ MAP = {
     "MIN": MIN,
     "PARITY": PARITY,
     "PAR": PAR,
+    "MAXENT": MAXENT,
 }

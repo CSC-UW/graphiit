@@ -17,7 +17,7 @@ class Graph(nx.DiGraph):
         background_nodes (list): A list of nodes to treat as background.
 
     Attributes:
-        state (np.array): Current state of the graph.
+        state (np.array): Current state of the graph. Binary. Can be a probability, e.g. [0.5, 1, 0]. TODO: Separate actual state from probability.
         background_nodes (list): Nodes currently treated as background.
         tpm (np.array): State-by-node TPM of the full system. Not conditioned on background nodes!
         cm (np.array): Connectivity matrix of full system.
@@ -62,12 +62,13 @@ class Graph(nx.DiGraph):
     def __str__(self):
         return repr(self)
 
-    def subgraph(self, subgraph_nodes) -> Graph:
+    def subgraph(self, subgraph_nodes, inputless_node_behavior="MAXENT") -> Graph:
         """Create a subgraph containing only the nodes provided and edges
         between them, preserving order. Background nodes and state are inherited."""
         subgraph_config = [
             node_conf for node_conf in self._config if node_conf[0] in subgraph_nodes
         ]  # Remove nodes not in subgraph
+
         subgraph_config = [
             (
                 *node_conf[:2],
@@ -75,9 +76,21 @@ class Graph(nx.DiGraph):
             )
             for node_conf in subgraph_config
         ]  # Remove edges not in subgraph
-        subgraph_config = [
-            node_conf for node_conf in subgraph_config if len(node_conf) > 2
-        ]  # Remove nodes with no edges left
+
+        if inputless_node_behavior in {"MAXENT", "COPY"}:
+
+            def _fix_inputless_node(node_conf):
+                return (node_conf[0], inputless_node_behavior, node_conf[0])
+
+            subgraph_config = [
+                node_conf if len(node_conf) > 2 else _fix_inputless_node(node_conf)
+                for node_conf in subgraph_config
+            ]  # Change nodes with no edges left
+        else:
+            subgraph_config = [
+                node_conf for node_conf in subgraph_config if len(node_conf) > 2
+            ]  # Remove nodes with no edges left
+
         return Graph(
             graph_config=subgraph_config,
             state=self.get_state_dict(subgraph_nodes),
@@ -157,12 +170,12 @@ class Graph(nx.DiGraph):
             }
         )
 
-    def get_state_array(self, nodes=None, dtype=int) -> np.ndarray:
+    def get_state_array(self, nodes=None, dtype=float) -> np.ndarray:
         """The current state of the system, as a numpy array.
 
         If the state has not been set, np.NaNs will be returned.
-        Example 1: graph.get_state_array() = np.array([0, 0, 1])
-        Example 2: graph.get_state_array(['A', 'C']) = np.array([0, 1])
+        Example 1: graph.get_state_array(dtype=int) = np.array([0, 0, 1])
+        Example 2: graph.get_state_array(['A', 'C'], dtype=int) = np.array([0, 1])
         Example 3: graph.get_state_array() = np.array([np.nan, np.nan, np.nan])
         """
         node_states = self.get_state_dict(nodes)
@@ -194,9 +207,9 @@ class Graph(nx.DiGraph):
                 node_func = self.nodes[node]["function"]
                 next_state[node] = node_func(input_vector)
             else:
-                # Here we define the state of an inputless node as persistent.
-                #   This may not be your intented behavior!
-                next_state[node] = current_state[node]
+                raise ValueError(
+                    f"Node {node} is inputless! Cannot predict next state!"
+                )
 
         if asarray:
             next_state = np.array(list(next_state.values()))
