@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import OrderedDict
+import itertools
 
 import networkx as nx
 import numpy as np
@@ -97,17 +98,36 @@ class Graph(nx.DiGraph):
             background=self.get_background_dict(subgraph_nodes),
         )
 
-    def markov_blanket(self, node) -> Graph:
-        """Yield a subgraph induced on the node, its parents, children, and
+    def markov_blanket(self, nodes, **subgraph_kwargs) -> Graph:
+        """Yield a subgraph induced on the nodes, their parents, children, and
         children's parents."""
-        parents = set(self.pred[node])
-        children = set(self.succ[node])
-        childrens_parents = set()
-        for child in children:
-            childrens_parents.update(set(self.pred[child]))
+        nodes = set(nodes)
+        parents = set(
+            itertools.chain.from_iterable(self.predecessors(node) for node in nodes)
+        )
+        children = set(
+            itertools.chain.from_iterable(self.successors(node) for node in nodes)
+        )
+        childrens_parents = set(
+            itertools.chain.from_iterable(self.predecessors(node) for node in children)
+        )
+        blanket = nodes | parents | children | childrens_parents
+        return self.subgraph(blanket, **subgraph_kwargs)
 
-        blanket = set.union({node}, parents, children, childrens_parents)
-        return self.subgraph(blanket)
+    def vokram_blanket(self, nodes, **subgraph_kwargs) -> Graph:
+        """Yield a subgraph induced on the nodes, their parents, children, and parents' children."""
+        nodes = set(nodes)
+        parents = set(
+            itertools.chain.from_iterable(self.predecessors(node) for node in nodes)
+        )
+        children = set(
+            itertools.chain.from_iterable(self.successors(node) for node in nodes)
+        )
+        parents_children = set(
+            itertools.chain.from_iterable(self.successors(node) for node in parents)
+        )
+        blanket = nodes | parents | children | parents_children
+        return self.subgraph(blanket, **subgraph_kwargs)
 
     def neighborhood(self, node) -> Graph:
         """Yield a subgraph induced on the node, its parents, and children."""
