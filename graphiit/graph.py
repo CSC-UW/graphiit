@@ -156,10 +156,15 @@ class Graph(nx.DiGraph):
         """Yields a connectivity matrix. Can be piped right into PyPhi."""
         return nx.adjacency_matrix(self).todense()
 
-    def pyphi_network(self) -> pyphi.Network:
-        """Yield a PyPhi network corresponding to the graph. PyPhi node indices
-        will match graph node indices."""
-        return pyphi.Network(self.tpm, self.cm, list(self.nodes))
+    @property
+    def node_labels(self) -> list:
+        """Node IDs, in insertion order."""
+        return list(self.nodes)
+
+    def pyphi_substrate(self) -> pyphi.Substrate:
+        """Yield a PyPhi substrate corresponding to the graph. PyPhi node
+        indices will match graph node indices."""
+        return pyphi.Substrate(self.tpm, self.cm, list(self.nodes))
 
     def set_state(self, state):
         """Flexible state setting.

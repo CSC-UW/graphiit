@@ -3,7 +3,7 @@ import pytest
 
 from graphiit import Graph
 from graphiit.example_graphs import oizumi2014_fig4
-from graphiit.graphiit.node_functions import NOT, XOR
+from graphiit.node_functions import NOT, XOR
 from graphiit.utils import (
     NodeConfig,
     parse_graph_config,
@@ -48,26 +48,23 @@ def test_parse_graph_config():
         parse_graph_config(config)
 
 
-def test_parse_state_config():
+def test_parse_state():
     graph = Graph(oizumi2014_fig4.graph_config)
 
     # State too large
     with pytest.raises(ValueError):
-        graph.parse_state_config((0, 1, 0, 1))
+        graph.parse_state((0, 1, 0, 1))
 
-    config = (0, 1, 0)
-    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
+    expected = {"A": 0, "B": 1, "C": 0}
+    assert graph.parse_state((0, 1, 0)) == expected
+    assert graph.parse_state([0, 1, 0]) == expected
+    assert graph.parse_state({"on": ["B"]}) == expected
+    assert graph.parse_state({"off": ["A", "C"]}) == expected
 
-    config = [0, 1, 0]
-    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
-
-    config = {"on": ["B"]}
-    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
-
-    config = {"off": ["A", "C"]}
-    assert np.array_equal(graph.parse_state_config(config), (0, 1, 0))
+    # Set-and-read-back round trip
+    graph.set_state({"on": ["B"]})
+    assert np.array_equal(graph.get_state_array(dtype=int), (0, 1, 0))
 
     # Can't specify both on and off states
     with pytest.raises(ValueError):
-        config = {"off": ["A", "C"], "on": ["B"]}
-        graph.parse_state_config(config)
+        graph.parse_state({"off": ["A", "C"], "on": ["B"]})

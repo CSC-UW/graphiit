@@ -19,7 +19,7 @@ def test_graph_instantiation():
 def test_add_from_config(fig4_config):
     graph = test_graph_instantiation()
     graph._add_from_config(config=fig4_config)
-    assert graph.nodes() == ["A", "B", "C"], "Nodes out of order"
+    assert list(graph.nodes()) == ["A", "B", "C"], "Nodes out of order"
 
 
 def test_node_labels(fig4_graph):
@@ -27,18 +27,14 @@ def test_node_labels(fig4_graph):
 
 
 def test_pyphi_integration(fig4_graph):
-    state = (1, 0, 0)
     fig4_graph.state = (1, 0, 0)
 
-    computed_net = fig4_graph.pyphi_network()
-    computed_sub = fig4_graph.pyphi_subsystem()
+    computed_substrate = fig4_graph.pyphi_substrate()
 
-    true_net = pyphi.examples.fig4()
-    true_sub = pyphi.Subsystem(true_net, state, true_net.node_indices)
+    true_substrate = pyphi.examples.fig4_substrate()
 
-    assert computed_net == true_net
-    assert np.array_equal(computed_net.node_labels, ["A", "B", "C"])
-    assert computed_sub == true_sub
+    assert computed_substrate == true_substrate
+    assert np.array_equal(computed_substrate.node_labels, ["A", "B", "C"])
 
 
 def test_tpm(fig4_graph):
