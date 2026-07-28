@@ -88,3 +88,5 @@ ENV/
 # Spyder project settings
 .spyderproject
 Status API Training Shop Blog About
+
+.DS_Store
